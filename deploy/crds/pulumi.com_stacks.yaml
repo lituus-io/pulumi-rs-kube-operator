@@ -1,0 +1,689 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: stacks.pulumi.com
+spec:
+  group: pulumi.com
+  names:
+    categories: []
+    kind: Stack
+    plural: stacks
+    shortNames:
+    - stack
+    singular: stack
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    - jsonPath: .status.conditions[?(@.type=="Ready")].status
+      name: Ready
+      type: string
+    name: v1
+    schema:
+      openAPIV3Schema:
+        description: Auto-generated derived type for StackSpec via `CustomResource`
+        properties:
+          spec:
+            description: Stack CRD -- pulumi.com/v1
+            properties:
+              accessTokenSecret:
+                nullable: true
+                type: string
+              backend:
+                description: Backend URL.
+                nullable: true
+                type: string
+              branch:
+                nullable: true
+                type: string
+              commit:
+                nullable: true
+                type: string
+              config:
+                additionalProperties:
+                  x-kubernetes-preserve-unknown-fields: true
+                type: object
+              configRef:
+                additionalProperties:
+                  properties:
+                    json:
+                      nullable: true
+                      type: boolean
+                    key:
+                      type: string
+                    name:
+                      type: string
+                  required:
+                  - key
+                  - name
+                  type: object
+                nullable: true
+                type: object
+              continueResyncOnCommitMatch:
+                default: false
+                type: boolean
+              destroyOnFinalize:
+                default: false
+                type: boolean
+              envRefs:
+                additionalProperties:
+                  properties:
+                    env:
+                      nullable: true
+                      properties:
+                        name:
+                          type: string
+                      required:
+                      - name
+                      type: object
+                    filesystem:
+                      nullable: true
+                      properties:
+                        path:
+                          type: string
+                      required:
+                      - path
+                      type: object
+                    literal:
+                      nullable: true
+                      properties:
+                        value:
+                          type: string
+                      required:
+                      - value
+                      type: object
+                    secret:
+                      nullable: true
+                      properties:
+                        key:
+                          type: string
+                        name:
+                          type: string
+                        namespace:
+                          nullable: true
+                          type: string
+                      required:
+                      - key
+                      - name
+                      type: object
+                    type:
+                      enum:
+                      - Env
+                      - FS
+                      - Secret
+                      - Literal
+                      type: string
+                  required:
+                  - type
+                  type: object
+                nullable: true
+                type: object
+              envSecrets:
+                items:
+                  type: string
+                type: array
+              environment:
+                items:
+                  type: string
+                type: array
+              envs:
+                items:
+                  type: string
+                type: array
+              expectNoRefreshChanges:
+                default: false
+                type: boolean
+              finalizerTimeoutSeconds:
+                default: 3600
+                format: int64
+                type: integer
+              fluxSource:
+                nullable: true
+                properties:
+                  dir:
+                    nullable: true
+                    type: string
+                  sourceRef:
+                    properties:
+                      apiVersion:
+                        type: string
+                      kind:
+                        type: string
+                      name:
+                        type: string
+                    required:
+                    - apiVersion
+                    - kind
+                    - name
+                    type: object
+                required:
+                - sourceRef
+                type: object
+              gitAuth:
+                nullable: true
+                properties:
+                  accessToken:
+                    nullable: true
+                    properties:
+                      env:
+                        nullable: true
+                        properties:
+                          name:
+                            type: string
+                        required:
+                        - name
+                        type: object
+                      filesystem:
+                        nullable: true
+                        properties:
+                          path:
+                            type: string
+                        required:
+                        - path
+                        type: object
+                      literal:
+                        nullable: true
+                        properties:
+                          value:
+                            type: string
+                        required:
+                        - value
+                        type: object
+                      secret:
+                        nullable: true
+                        properties:
+                          key:
+                            type: string
+                          name:
+                            type: string
+                          namespace:
+                            nullable: true
+                            type: string
+                        required:
+                        - key
+                        - name
+                        type: object
+                      type:
+                        enum:
+                        - Env
+                        - FS
+                        - Secret
+                        - Literal
+                        type: string
+                    required:
+                    - type
+                    type: object
+                  basicAuth:
+                    nullable: true
+                    properties:
+                      password:
+                        properties:
+                          env:
+                            nullable: true
+                            properties:
+                              name:
+                                type: string
+                            required:
+                            - name
+                            type: object
+                          filesystem:
+                            nullable: true
+                            properties:
+                              path:
+                                type: string
+                            required:
+                            - path
+                            type: object
+                          literal:
+                            nullable: true
+                            properties:
+                              value:
+                                type: string
+                            required:
+                            - value
+                            type: object
+                          secret:
+                            nullable: true
+                            properties:
+                              key:
+                                type: string
+                              name:
+                                type: string
+                              namespace:
+                                nullable: true
+                                type: string
+                            required:
+                            - key
+                            - name
+                            type: object
+                          type:
+                            enum:
+                            - Env
+                            - FS
+                            - Secret
+                            - Literal
+                            type: string
+                        required:
+                        - type
+                        type: object
+                      userName:
+                        properties:
+                          env:
+                            nullable: true
+                            properties:
+                              name:
+                                type: string
+                            required:
+                            - name
+                            type: object
+                          filesystem:
+                            nullable: true
+                            properties:
+                              path:
+                                type: string
+                            required:
+                            - path
+                            type: object
+                          literal:
+                            nullable: true
+                            properties:
+                              value:
+                                type: string
+                            required:
+                            - value
+                            type: object
+                          secret:
+                            nullable: true
+                            properties:
+                              key:
+                                type: string
+                              name:
+                                type: string
+                              namespace:
+                                nullable: true
+                                type: string
+                            required:
+                            - key
+                            - name
+                            type: object
+                          type:
+                            enum:
+                            - Env
+                            - FS
+                            - Secret
+                            - Literal
+                            type: string
+                        required:
+                        - type
+                        type: object
+                    required:
+                    - password
+                    - userName
+                    type: object
+                  sshAuth:
+                    nullable: true
+                    properties:
+                      password:
+                        nullable: true
+                        properties:
+                          env:
+                            nullable: true
+                            properties:
+                              name:
+                                type: string
+                            required:
+                            - name
+                            type: object
+                          filesystem:
+                            nullable: true
+                            properties:
+                              path:
+                                type: string
+                            required:
+                            - path
+                            type: object
+                          literal:
+                            nullable: true
+                            properties:
+                              value:
+                                type: string
+                            required:
+                            - value
+                            type: object
+                          secret:
+                            nullable: true
+                            properties:
+                              key:
+                                type: string
+                              name:
+                                type: string
+                              namespace:
+                                nullable: true
+                                type: string
+                            required:
+                            - key
+                            - name
+                            type: object
+                          type:
+                            enum:
+                            - Env
+                            - FS
+                            - Secret
+                            - Literal
+                            type: string
+                        required:
+                        - type
+                        type: object
+                      sshPrivateKey:
+                        properties:
+                          env:
+                            nullable: true
+                            properties:
+                              name:
+                                type: string
+                            required:
+                            - name
+                            type: object
+                          filesystem:
+                            nullable: true
+                            properties:
+                              path:
+                                type: string
+                            required:
+                            - path
+                            type: object
+                          literal:
+                            nullable: true
+                            properties:
+                              value:
+                                type: string
+                            required:
+                            - value
+                            type: object
+                          secret:
+                            nullable: true
+                            properties:
+                              key:
+                                type: string
+                              name:
+                                type: string
+                              namespace:
+                                nullable: true
+                                type: string
+                            required:
+                            - key
+                            - name
+                            type: object
+                          type:
+                            enum:
+                            - Env
+                            - FS
+                            - Secret
+                            - Literal
+                            type: string
+                        required:
+                        - type
+                        type: object
+                    required:
+                    - sshPrivateKey
+                    type: object
+                type: object
+              gitAuthSecret:
+                nullable: true
+                type: string
+              lockTimeoutSeconds:
+                default: 600
+                format: int64
+                type: integer
+              operationTimeoutSeconds:
+                default: 3600
+                format: int64
+                type: integer
+              prerequisites:
+                items:
+                  properties:
+                    name:
+                      type: string
+                    requirement:
+                      nullable: true
+                      properties:
+                        succeededWithinDuration:
+                          nullable: true
+                          type: string
+                      type: object
+                  required:
+                  - name
+                  type: object
+                type: array
+              preview:
+                default: false
+                type: boolean
+              programRef:
+                nullable: true
+                properties:
+                  name:
+                    type: string
+                required:
+                - name
+                type: object
+              projectRepo:
+                nullable: true
+                type: string
+              refresh:
+                default: false
+                type: boolean
+              repoDir:
+                nullable: true
+                type: string
+              resyncFrequencySeconds:
+                default: 0
+                format: int64
+                type: integer
+              retryMaxBackoffDurationSeconds:
+                default: 0
+                format: int64
+                type: integer
+              retryOnUpdateConflict:
+                default: false
+                type: boolean
+              secrets:
+                additionalProperties:
+                  type: string
+                nullable: true
+                type: object
+              secretsProvider:
+                nullable: true
+                type: string
+              secretsRef:
+                additionalProperties:
+                  properties:
+                    env:
+                      nullable: true
+                      properties:
+                        name:
+                          type: string
+                      required:
+                      - name
+                      type: object
+                    filesystem:
+                      nullable: true
+                      properties:
+                        path:
+                          type: string
+                      required:
+                      - path
+                      type: object
+                    literal:
+                      nullable: true
+                      properties:
+                        value:
+                          type: string
+                      required:
+                      - value
+                      type: object
+                    secret:
+                      nullable: true
+                      properties:
+                        key:
+                          type: string
+                        name:
+                          type: string
+                        namespace:
+                          nullable: true
+                          type: string
+                      required:
+                      - key
+                      - name
+                      type: object
+                    type:
+                      enum:
+                      - Env
+                      - FS
+                      - Secret
+                      - Literal
+                      type: string
+                  required:
+                  - type
+                  type: object
+                nullable: true
+                type: object
+              serviceAccountName:
+                nullable: true
+                type: string
+              shallow:
+                default: false
+                type: boolean
+              stack:
+                description: 'Fully qualified stack name (org/stack). String: inlined <= 24 bytes.'
+                type: string
+              targetDependents:
+                default: false
+                type: boolean
+              targets:
+                items:
+                  type: string
+                type: array
+              updateTemplate:
+                x-kubernetes-preserve-unknown-fields: true
+              useLocalStackOnly:
+                default: false
+                type: boolean
+              workspaceReclaimPolicy:
+                default: Retain
+                enum:
+                - Retain
+                - Delete
+                type: string
+              workspaceTemplate:
+                description: RawValue for zero-copy SSA merge
+                x-kubernetes-preserve-unknown-fields: true
+            required:
+            - stack
+            type: object
+          status:
+            nullable: true
+            properties:
+              conditions:
+                items:
+                  description: Kubernetes-style condition (with JsonSchema support). k8s_openapi::Condition doesn't implement JsonSchema, so we define our own compatible type.
+                  properties:
+                    lastTransitionTime:
+                      nullable: true
+                      type: string
+                    message:
+                      nullable: true
+                      type: string
+                    observedGeneration:
+                      default: 0
+                      format: int64
+                      type: integer
+                    reason:
+                      nullable: true
+                      type: string
+                    status:
+                      type: string
+                    type:
+                      type: string
+                  required:
+                  - status
+                  - type
+                  type: object
+                type: array
+              currentUpdate:
+                nullable: true
+                properties:
+                  commit:
+                    nullable: true
+                    type: string
+                  generation:
+                    default: 0
+                    format: int64
+                    type: integer
+                  name:
+                    nullable: true
+                    type: string
+                  reconcileRequest:
+                    nullable: true
+                    type: string
+                type: object
+              lastUpdate:
+                nullable: true
+                properties:
+                  failures:
+                    default: 0
+                    format: int64
+                    type: integer
+                  generation:
+                    default: 0
+                    format: int64
+                    type: integer
+                  lastAttemptedCommit:
+                    nullable: true
+                    type: string
+                  lastResyncTime:
+                    nullable: true
+                    type: string
+                  lastSuccessfulCommit:
+                    nullable: true
+                    type: string
+                  message:
+                    nullable: true
+                    type: string
+                  name:
+                    nullable: true
+                    type: string
+                  permalink:
+                    nullable: true
+                    type: string
+                  reconcileRequest:
+                    nullable: true
+                    type: string
+                  state:
+                    nullable: true
+                    type: string
+                  type:
+                    nullable: true
+                    type: string
+                type: object
+              observedGeneration:
+                default: 0
+                format: int64
+                type: integer
+              observedReconcileRequest:
+                nullable: true
+                type: string
+              outputs:
+                additionalProperties:
+                  x-kubernetes-preserve-unknown-fields: true
+                type: object
+            type: object
+        required:
+        - spec
+        title: Stack
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

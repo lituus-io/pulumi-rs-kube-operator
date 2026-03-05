@@ -1,0 +1,157 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: -Dwarnings
+
+jobs:
+  fmt:
+    name: Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - run: cargo fmt --all -- --check
+
+  clippy:
+    name: Clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Install protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          version: "25.x"
+      - run: cargo clippy --all-targets --all-features -- -D warnings
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          version: "25.x"
+      - run: cargo test --all-targets
+
+  crd-check:
+    name: CRD up-to-date
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          version: "25.x"
+      - name: Regenerate CRDs
+        run: cargo run --bin crdgen > /tmp/all-crds.yaml
+      - name: Split CRDs
+        run: |
+          awk 'BEGIN{n=0; file="/tmp/crd-"n".yaml"} /^---$/{n++; file="/tmp/crd-"n".yaml"; next} {print > file}' /tmp/all-crds.yaml
+          cp /tmp/crd-0.yaml /tmp/pulumi.com_stacks.yaml
+          cp /tmp/crd-1.yaml /tmp/auto.pulumi.com_workspaces.yaml
+          cp /tmp/crd-2.yaml /tmp/auto.pulumi.com_updates.yaml
+          cp /tmp/crd-3.yaml /tmp/pulumi.com_programs.yaml
+      - name: Diff
+        run: |
+          diff deploy/crds/pulumi.com_stacks.yaml /tmp/pulumi.com_stacks.yaml
+          diff deploy/crds/auto.pulumi.com_workspaces.yaml /tmp/auto.pulumi.com_workspaces.yaml
+          diff deploy/crds/auto.pulumi.com_updates.yaml /tmp/auto.pulumi.com_updates.yaml
+          diff deploy/crds/pulumi.com_programs.yaml /tmp/pulumi.com_programs.yaml
+
+  helm-lint:
+    name: Helm Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.14.0
+      - run: helm lint deploy/helm/pulumi-operator
+
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install cargo-audit
+        run: cargo install cargo-audit
+      - name: Run cargo-audit
+        run: cargo audit
+
+  cargo-deny:
+    name: Dependency Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: EmbarkStudios/cargo-deny-action@v1
+
+  fuzz-smoke:
+    name: Fuzz Smoke Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+      - uses: Swatinem/rust-cache@v2
+      - name: Install cargo-fuzz
+        run: cargo install cargo-fuzz
+      - name: Install protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          version: "25.x"
+      - name: Run each fuzzer for 30 seconds
+        run: |
+          for target in fuzz_stack_deser fuzz_go_duration fuzz_hmac_validation fuzz_redact_stderr fuzz_lock_detection; do
+            cargo +nightly fuzz run $target -- -max_total_time=30 || exit 1
+          done
+
+  build:
+    name: Build (${{ matrix.target }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-musl
+            runner: ubuntu-latest
+          - target: aarch64-unknown-linux-musl
+            runner: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+      - name: Install protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          version: "25.x"
+      - name: Install musl-tools
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
+      - run: cargo build --release --target ${{ matrix.target }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: binary-${{ matrix.target }}
+          path: target/${{ matrix.target }}/release/pulumi-kubernetes-operator

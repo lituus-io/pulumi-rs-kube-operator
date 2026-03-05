@@ -1,0 +1,25 @@
+# Build artifacts
+/target/
+/fuzz/target/
+/fuzz/corpus/
+/fuzz/artifacts/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.*
+*.pem
+*.key
+
+# Debug
+*.log

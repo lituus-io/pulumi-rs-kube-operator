@@ -1,0 +1,15 @@
+# Single-arch Dockerfile used by CI release workflow.
+# Expects the pre-built binary at ./pulumi-kubernetes-operator in the build context.
+FROM cgr.dev/chainguard/static:latest
+
+LABEL org.opencontainers.image.source="https://github.com/lituus-io/pulumi-rs-kube-operator"
+LABEL org.opencontainers.image.description="Pulumi Kubernetes Operator (Rust)"
+LABEL org.opencontainers.image.licenses="AGPL-3.0-or-later"
+LABEL org.opencontainers.image.vendor="Lituus-io"
+
+COPY pulumi-kubernetes-operator /usr/local/bin/pulumi-kubernetes-operator
+
+USER nonroot:nonroot
+
+ENTRYPOINT ["/usr/local/bin/pulumi-kubernetes-operator"]
+CMD ["operator"]

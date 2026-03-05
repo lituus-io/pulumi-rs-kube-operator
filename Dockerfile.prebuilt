@@ -1,0 +1,32 @@
+# Minimal Dockerfile for pre-built binaries (used by CI native runners).
+# The binary is built on the GitHub Actions runner, not inside Docker.
+#
+# For local use:
+#   cargo build --release --target x86_64-unknown-linux-musl
+#   docker build -f Dockerfile.prebuilt \
+#     --build-arg BINARY_PATH=target/x86_64-unknown-linux-musl/release/pulumi-kubernetes-operator \
+#     -t pulumi-kubernetes-operator .
+#
+# For multi-arch CI (release workflow downloads artifacts to /tmp/binary-{arch}/):
+#   docker buildx build -f Dockerfile.prebuilt --platform linux/amd64,linux/arm64 ...
+
+FROM cgr.dev/chainguard/static:latest
+
+LABEL org.opencontainers.image.source="https://github.com/lituus-io/pulumi-rs-kube-operator"
+LABEL org.opencontainers.image.description="Pulumi Kubernetes Operator (Rust)"
+LABEL org.opencontainers.image.licenses="AGPL-3.0-or-later"
+LABEL org.opencontainers.image.vendor="Lituus-io"
+
+ARG TARGETARCH
+ARG BINARY_PATH
+
+# Multi-arch: the release workflow sets BINARY_PATH per platform via
+# docker buildx build-contexts. For single-arch local builds, use the
+# BINARY_PATH arg directly.
+COPY ${BINARY_PATH:-/tmp/binary-${TARGETARCH}/pulumi-kubernetes-operator} \
+     /usr/local/bin/pulumi-kubernetes-operator
+
+USER nonroot:nonroot
+
+ENTRYPOINT ["/usr/local/bin/pulumi-kubernetes-operator"]
+CMD ["operator"]

@@ -1,0 +1,195 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: programs.pulumi.com
+spec:
+  group: pulumi.com
+  names:
+    categories: []
+    kind: Program
+    plural: programs
+    shortNames:
+    - prog
+    singular: program
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1
+    schema:
+      openAPIV3Schema:
+        description: Auto-generated derived type for ProgramSpec via `CustomResource`
+        properties:
+          spec:
+            description: Program CRD -- pulumi.com/v1
+            properties:
+              configuration:
+                additionalProperties:
+                  properties:
+                    default:
+                      type: object
+                      x-kubernetes-preserve-unknown-fields: true
+                    type:
+                      enum:
+                      - String
+                      - Number
+                      - List<Number>
+                      - List<String>
+                      nullable: true
+                      type: string
+                  type: object
+                description: Configuration schema for the program.
+                nullable: true
+                type: object
+              outputs:
+                additionalProperties:
+                  type: object
+                  x-kubernetes-preserve-unknown-fields: true
+                description: Stack outputs.
+                type: object
+              packages:
+                additionalProperties:
+                  type: string
+                description: Package dependencies (name -> version).
+                nullable: true
+                type: object
+              resources:
+                additionalProperties:
+                  properties:
+                    get:
+                      nullable: true
+                      properties:
+                        id:
+                          type: string
+                        state:
+                          additionalProperties:
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                          type: object
+                      required:
+                      - id
+                      type: object
+                    options:
+                      nullable: true
+                      properties:
+                        additionalSecretOutputs:
+                          items:
+                            type: string
+                          type: array
+                        aliases:
+                          items:
+                            type: string
+                          type: array
+                        customTimeouts:
+                          nullable: true
+                          properties:
+                            create:
+                              nullable: true
+                              type: string
+                            delete:
+                              nullable: true
+                              type: string
+                            update:
+                              nullable: true
+                              type: string
+                          type: object
+                        deleteBeforeReplace:
+                          default: false
+                          type: boolean
+                        dependsOn:
+                          items:
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                          type: array
+                        ignoreChanges:
+                          items:
+                            type: string
+                          type: array
+                        import:
+                          nullable: true
+                          type: string
+                        parent:
+                          type: object
+                          x-kubernetes-preserve-unknown-fields: true
+                        protect:
+                          default: false
+                          type: boolean
+                        provider:
+                          type: object
+                          x-kubernetes-preserve-unknown-fields: true
+                        providers:
+                          additionalProperties:
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                          type: object
+                        version:
+                          nullable: true
+                          type: string
+                      type: object
+                    properties:
+                      additionalProperties:
+                        type: object
+                        x-kubernetes-preserve-unknown-fields: true
+                      type: object
+                    type:
+                      type: string
+                  required:
+                  - type
+                  type: object
+                description: Resources to create/manage.
+                nullable: true
+                type: object
+              variables:
+                additionalProperties:
+                  type: object
+                  x-kubernetes-preserve-unknown-fields: true
+                description: Variables computed from expressions.
+                type: object
+            type: object
+          status:
+            nullable: true
+            properties:
+              artifact:
+                nullable: true
+                properties:
+                  digest:
+                    nullable: true
+                    type: string
+                  lastUpdateTime:
+                    type: string
+                  metadata:
+                    additionalProperties:
+                      type: string
+                    nullable: true
+                    type: object
+                  path:
+                    type: string
+                  revision:
+                    type: string
+                  size:
+                    format: int64
+                    nullable: true
+                    type: integer
+                  url:
+                    type: string
+                required:
+                - lastUpdateTime
+                - path
+                - revision
+                - url
+                type: object
+              observedGeneration:
+                default: 0
+                format: int64
+                type: integer
+            type: object
+        required:
+        - spec
+        title: Program
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

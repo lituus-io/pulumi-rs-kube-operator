@@ -1,0 +1,124 @@
+# Default values for pulumi-operator.
+
+# -- Number of replicas
+replicaCount: 1
+
+image:
+  # -- Container image registry
+  registry: ghcr.io
+  # -- Container image repository
+  repository: lituus-io/pulumi-rs-kube-operator
+  # -- Image pull policy
+  pullPolicy: IfNotPresent
+  # -- Overrides the image tag (default is Chart.appVersion)
+  # @default -- Chart.appVersion
+  tag: ""
+
+# -- Image pull secrets for private registries
+imagePullSecrets: []
+
+# -- Override the chart name
+nameOverride: ""
+# -- Override the full name
+fullnameOverride: ""
+
+serviceAccount:
+  # -- Create a ServiceAccount
+  create: true
+  # -- ServiceAccount annotations
+  annotations: {}
+  # -- ServiceAccount name (generated if not set)
+  name: ""
+
+rbac:
+  # -- Create RBAC resources
+  create: true
+  # -- Create ClusterRole (false = namespace-scoped only)
+  createClusterRole: true
+  # -- Create aggregation ClusterRoles for built-in edit/view
+  createClusterAggregationRoles: true
+
+# -- Pod-level annotations
+podAnnotations: {}
+
+# -- Pod-level labels
+podLabels: {}
+
+# -- Pod security context
+podSecurityContext:
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+
+# -- Container security context
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 65532
+  capabilities:
+    drop:
+      - ALL
+
+# -- Container resource limits and requests
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+# -- Node selector for pod scheduling
+nodeSelector: {}
+
+# -- Tolerations for pod scheduling
+tolerations: []
+
+# -- Affinity rules for pod scheduling
+affinity: {}
+
+# -- Additional environment variables
+extraEnv: []
+
+# -- Additional volume mounts
+extraVolumeMounts: []
+
+# -- Additional volumes
+extraVolumes: []
+
+operator:
+  # -- Maximum concurrent reconciles
+  maxConcurrentReconciles: 25
+  # -- Enable leader election for HA
+  leaderElect: true
+  # -- Log level (info, debug, trace)
+  logLevel: info
+  # -- Metrics bind address
+  metricsBindAddress: ":8080"
+  # -- Health probe bind address
+  healthProbeBindAddress: ":8081"
+
+service:
+  # -- Service type
+  type: ClusterIP
+  # -- Metrics port
+  metricsPort: 8080
+
+metrics:
+  # -- Create a ServiceMonitor for Prometheus Operator
+  serviceMonitor:
+    enabled: false
+    # -- Additional labels for the ServiceMonitor
+    labels: {}
+    # -- Scrape interval
+    interval: 30s
+    # -- Scrape timeout
+    scrapeTimeout: 10s
+
+networkPolicy:
+  # -- Create a NetworkPolicy
+  enabled: false
+
+# -- Agent image (defaults to the same image as the operator)
+agentImage: ""

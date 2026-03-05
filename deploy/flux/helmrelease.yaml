@@ -1,0 +1,75 @@
+---
+# Flux HelmRepository (OCI)
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: pulumi-operator
+  namespace: flux-system
+spec:
+  type: oci
+  interval: 10m
+  url: oci://ghcr.io/lituus-io/charts
+  # For private repos:
+  # secretRef:
+  #   name: ghcr-credentials
+---
+# Flux HelmRelease
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: pulumi-operator
+  namespace: pulumi-system
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: pulumi-operator
+      version: ">=0.1.0"
+      sourceRef:
+        kind: HelmRepository
+        name: pulumi-operator
+        namespace: flux-system
+      interval: 10m
+  install:
+    createNamespace: true
+    remediation:
+      retries: 3
+  upgrade:
+    remediation:
+      retries: 3
+  values:
+    operator:
+      maxConcurrentReconciles: 25
+    resources:
+      limits:
+        cpu: 500m
+        memory: 256Mi
+      requests:
+        cpu: 100m
+        memory: 64Mi
+---
+# Image automation: auto-update HelmRelease when new chart versions appear.
+# Flux v2 natively supports semver for HelmRelease chart.spec.version,
+# so simply using ">=2.0.0" with a semver constraint auto-upgrades.
+# If you need container-image-level tracking (e.g. for canary), add:
+#
+# apiVersion: image.toolkit.fluxcd.io/v1beta2
+# kind: ImageRepository
+# metadata:
+#   name: pulumi-operator
+#   namespace: flux-system
+# spec:
+#   image: ghcr.io/lituus-io/pulumi-rs-kube-operator
+#   interval: 5m
+# ---
+# apiVersion: image.toolkit.fluxcd.io/v1beta2
+# kind: ImagePolicy
+# metadata:
+#   name: pulumi-operator
+#   namespace: flux-system
+# spec:
+#   imageRepositoryRef:
+#     name: pulumi-operator
+#   policy:
+#     semver:
+#       range: ">=0.1.0"

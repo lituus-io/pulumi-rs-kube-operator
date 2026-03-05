@@ -1,0 +1,106 @@
+[package]
+name = "pulumi-kubernetes-operator"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.80"
+default-run = "pulumi-kubernetes-operator"
+authors = ["terekete <spicyzhug@gmail.com>"]
+license = "AGPL-3.0-or-later"
+description = "Pulumi Kubernetes Operator - Rust implementation"
+repository = "https://github.com/lituus-io/pulumi-rs-kube-operator"
+
+[[bin]]
+name = "pulumi-kubernetes-operator"
+path = "src/main.rs"
+
+[[bin]]
+name = "crdgen"
+path = "src/crdgen.rs"
+
+[dependencies]
+# Kubernetes (Client is internally Arc - accepted; we never Arc our own types)
+# rustls-tls enables fully static musl builds (no OpenSSL dependency)
+kube = { version = "0.98", features = ["runtime", "derive", "client", "rustls-tls"], default-features = false }
+k8s-openapi = { version = "0.24", features = ["v1_31"] }
+schemars = "0.8"
+
+# Async (no dynamic dispatch: explicit select!, no spawn_blocking)
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "signal", "sync", "time", "process"] }
+tokio-util = "0.7"
+futures = "0.3"
+pin-project-lite = "0.2"
+
+# Serialization (zero-copy: RawValue for JSON pass-through)
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_yaml = "0.9"
+
+# gRPC (zero-copy: bytes::Bytes for all byte fields)
+tonic = "0.12"
+prost = "0.13"
+prost-types = "0.13"
+bytes = "1"
+tokio-stream = "0.1"
+
+# Error handling (NO anyhow - it uses Box<dyn Error>)
+thiserror = "2"
+
+# Logging (zero-alloc: static str events)
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+
+# Sync (fast mutex without Arc)
+parking_lot = "0.12"
+
+# Compact strings (inline <= 24 bytes, avoids heap for short field names/reasons)
+compact_str = { version = "0.8", features = ["serde"] }
+
+# Time
+chrono = { version = "0.4", features = ["serde"] }
+
+# CLI
+clap = { version = "4", features = ["derive", "env"] }
+
+# Hashing
+sha2 = "0.10"
+hex = "0.4"
+
+# Flux artifact extraction
+flate2 = "1"
+tar = "0.4"
+
+# Webhook HMAC validation
+hmac = "0.12"
+
+# HTTP (for Flux source fetching; rustls for static builds)
+reqwest = { version = "0.12", features = ["json", "stream", "rustls-tls"], default-features = false }
+
+# Metrics (lock-free atomics)
+prometheus-client = "0.23"
+
+# HTTP server (health probes — already transitive via tonic/reqwest)
+hyper = { version = "1", features = ["http1", "server"] }
+hyper-util = { version = "0.1", features = ["tokio"] }
+http-body-util = "0.1"
+
+[build-dependencies]
+tonic-build = "0.12"
+
+[dev-dependencies]
+proptest = "1"
+tempfile = "3"
+assert_matches = "1.5"
+tokio-test = "0.4"
+serial_test = "3"
+
+[profile.release]
+opt-level = "z"        # optimize for size
+lto = true             # link-time optimization
+codegen-units = 1      # single codegen unit for best LTO
+panic = "abort"        # no unwinding machinery
+strip = true           # strip symbols
+
+[lints.clippy]
+# Enforce zero-cost principles at lint level
+clone_on_ref_ptr = "deny"
+arc_with_non_send_sync = "deny"

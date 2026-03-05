@@ -1,0 +1,23 @@
+apiVersion: v2
+name: pulumi-operator
+description: Pulumi Kubernetes Operator - manages Pulumi stacks as Kubernetes CRs
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+home: https://github.com/lituus-io/pulumi-rs-kube-operator
+sources:
+  - https://github.com/lituus-io/pulumi-rs-kube-operator
+maintainers:
+  - name: terekete
+    email: spicyzhug@gmail.com
+keywords:
+  - pulumi
+  - kubernetes
+  - operator
+  - infrastructure-as-code
+  - gitops
+annotations:
+  artifacthub.io/license: AGPL-3.0-or-later
+  artifacthub.io/operator: "true"
+  artifacthub.io/operatorCapabilities: Full Lifecycle
+  artifacthub.io/category: integration-delivery

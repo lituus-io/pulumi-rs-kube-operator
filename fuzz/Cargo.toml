@@ -1,0 +1,49 @@
+[package]
+name = "pulumi-operator-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+pulumi-kubernetes-operator = { path = ".." }
+serde_json = "1"
+
+# Prevent this from interfering with workspace
+[workspace]
+members = ["."]
+
+[[bin]]
+name = "fuzz_stack_deser"
+path = "fuzz_targets/stack_deser.rs"
+
+[[bin]]
+name = "fuzz_update_deser"
+path = "fuzz_targets/update_deser.rs"
+
+[[bin]]
+name = "fuzz_program_deser"
+path = "fuzz_targets/program_deser.rs"
+
+[[bin]]
+name = "fuzz_workspace_deser"
+path = "fuzz_targets/workspace_deser.rs"
+
+[[bin]]
+name = "fuzz_go_duration"
+path = "fuzz_targets/go_duration.rs"
+
+[[bin]]
+name = "fuzz_hmac_validation"
+path = "fuzz_targets/hmac_validation.rs"
+
+[[bin]]
+name = "fuzz_redact_stderr"
+path = "fuzz_targets/redact_stderr.rs"
+
+[[bin]]
+name = "fuzz_lock_detection"
+path = "fuzz_targets/lock_detection.rs"

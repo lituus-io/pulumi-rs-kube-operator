@@ -1,0 +1,191 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+  packages: write
+  id-token: write  # cosign keyless signing
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  HELM_CHART_PATH: deploy/helm/pulumi-operator
+
+jobs:
+  build-and-push:
+    name: Build (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        include:
+          - arch: amd64
+            target: x86_64-unknown-linux-musl
+            runner: ubuntu-latest
+          - arch: arm64
+            target: aarch64-unknown-linux-musl
+            runner: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: release-${{ matrix.target }}
+
+      - name: Install protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          version: "25.x"
+
+      - name: Install musl-tools
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
+
+      - name: Build binary
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract version
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push per-arch image
+        run: |
+          TAG="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}-${{ matrix.arch }}"
+          cp target/${{ matrix.target }}/release/pulumi-kubernetes-operator ./pulumi-kubernetes-operator
+          docker build -f Dockerfile.release -t "${TAG}" .
+          docker push "${TAG}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: binary-${{ matrix.arch }}
+          path: target/${{ matrix.target }}/release/pulumi-kubernetes-operator
+
+  manifest:
+    name: Create Multi-Arch Manifest
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    outputs:
+      digest: ${{ steps.digest.outputs.digest }}
+    steps:
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create and push manifest list
+        run: |
+          BASE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
+          TAG="${{ github.ref_name }}"
+
+          docker manifest create "${BASE}:${TAG}" \
+            "${BASE}:${TAG}-amd64" \
+            "${BASE}:${TAG}-arm64"
+
+          docker manifest annotate "${BASE}:${TAG}" \
+            "${BASE}:${TAG}-amd64" --os linux --arch amd64
+          docker manifest annotate "${BASE}:${TAG}" \
+            "${BASE}:${TAG}-arm64" --os linux --arch arm64
+
+          docker manifest push "${BASE}:${TAG}"
+
+          # Also tag as latest
+          docker manifest create "${BASE}:latest" \
+            "${BASE}:${TAG}-amd64" \
+            "${BASE}:${TAG}-arm64"
+          docker manifest annotate "${BASE}:latest" \
+            "${BASE}:${TAG}-amd64" --os linux --arch amd64
+          docker manifest annotate "${BASE}:latest" \
+            "${BASE}:${TAG}-arm64" --os linux --arch arm64
+          docker manifest push "${BASE}:latest"
+
+      - name: Get digest
+        id: digest
+        run: |
+          DIGEST=$(docker manifest inspect \
+            "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}" \
+            -v | jq -r '.Descriptor.digest')
+          echo "digest=${DIGEST}" >> "$GITHUB_OUTPUT"
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign image
+        run: |
+          cosign sign --yes \
+            "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.digest.outputs.digest }}"
+
+  publish-helm:
+    name: Publish Helm Chart
+    needs: manifest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.14.0
+
+      - name: Log in to GHCR (Helm OCI)
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | \
+            helm registry login ${{ env.REGISTRY }} \
+              --username ${{ github.actor }} \
+              --password-stdin
+
+      - name: Extract version
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Update Chart.yaml version
+        run: |
+          sed -i "s/^version:.*/version: ${{ steps.version.outputs.version }}/" ${{ env.HELM_CHART_PATH }}/Chart.yaml
+          sed -i "s/^appVersion:.*/appVersion: \"${{ steps.version.outputs.version }}\"/" ${{ env.HELM_CHART_PATH }}/Chart.yaml
+
+      - name: Package chart
+        run: helm package ${{ env.HELM_CHART_PATH }}
+
+      - name: Push chart to OCI registry
+        run: |
+          helm push pulumi-operator-${{ steps.version.outputs.version }}.tgz \
+            oci://${{ env.REGISTRY }}/${{ github.repository_owner }}/charts
+
+  create-release:
+    name: GitHub Release
+    needs: [manifest, publish-helm]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: /tmp/artifacts
+
+      - name: Prepare release assets
+        run: |
+          mkdir -p /tmp/release
+          cp /tmp/artifacts/binary-amd64/pulumi-kubernetes-operator \
+             /tmp/release/pulumi-kubernetes-operator-linux-amd64
+          cp /tmp/artifacts/binary-arm64/pulumi-kubernetes-operator \
+             /tmp/release/pulumi-kubernetes-operator-linux-arm64
+          cd /tmp/release && sha256sum * > checksums.txt
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          generate_release_notes: true
+          files: /tmp/release/*

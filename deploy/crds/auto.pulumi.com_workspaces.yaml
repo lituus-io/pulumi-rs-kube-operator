@@ -1,0 +1,260 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: workspaces.auto.pulumi.com
+spec:
+  group: auto.pulumi.com
+  names:
+    categories: []
+    kind: Workspace
+    plural: workspaces
+    shortNames:
+    - ws
+    singular: workspace
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    - jsonPath: .status.conditions[?(@.type=="Ready")].status
+      name: Ready
+      type: string
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: Auto-generated derived type for WorkspaceSpec via `CustomResource`
+        properties:
+          spec:
+            description: Workspace CRD -- auto.pulumi.com/v1alpha1
+            properties:
+              env:
+                items:
+                  x-kubernetes-preserve-unknown-fields: true
+                type: array
+              envFrom:
+                items:
+                  x-kubernetes-preserve-unknown-fields: true
+                type: array
+              flux:
+                nullable: true
+                properties:
+                  digest:
+                    nullable: true
+                    type: string
+                  dir:
+                    nullable: true
+                    type: string
+                  url:
+                    nullable: true
+                    type: string
+                type: object
+              git:
+                nullable: true
+                properties:
+                  auth:
+                    nullable: true
+                    properties:
+                      password:
+                        nullable: true
+                        properties:
+                          key:
+                            nullable: true
+                            type: string
+                          name:
+                            nullable: true
+                            type: string
+                        type: object
+                      sshPrivateKey:
+                        nullable: true
+                        properties:
+                          key:
+                            nullable: true
+                            type: string
+                          name:
+                            nullable: true
+                            type: string
+                        type: object
+                      token:
+                        nullable: true
+                        properties:
+                          key:
+                            nullable: true
+                            type: string
+                          name:
+                            nullable: true
+                            type: string
+                        type: object
+                      username:
+                        nullable: true
+                        properties:
+                          key:
+                            nullable: true
+                            type: string
+                          name:
+                            nullable: true
+                            type: string
+                        type: object
+                    type: object
+                  dir:
+                    nullable: true
+                    type: string
+                  ref:
+                    nullable: true
+                    type: string
+                  shallow:
+                    default: false
+                    type: boolean
+                  url:
+                    nullable: true
+                    type: string
+                type: object
+              image:
+                nullable: true
+                type: string
+              imagePullPolicy:
+                nullable: true
+                type: string
+              local:
+                nullable: true
+                properties:
+                  dir:
+                    nullable: true
+                    type: string
+                type: object
+              podTemplate:
+                nullable: true
+                properties:
+                  metadata:
+                    nullable: true
+                    properties:
+                      annotations:
+                        additionalProperties:
+                          type: string
+                        nullable: true
+                        type: object
+                      labels:
+                        additionalProperties:
+                          type: string
+                        nullable: true
+                        type: object
+                    type: object
+                  spec:
+                    x-kubernetes-preserve-unknown-fields: true
+                type: object
+              pulumiLogLevel:
+                default: 0
+                format: uint32
+                minimum: 0.0
+                type: integer
+              resources:
+                x-kubernetes-preserve-unknown-fields: true
+              securityProfile:
+                default: restricted
+                enum:
+                - baseline
+                - restricted
+                type: string
+              serviceAccountName:
+                default: default
+                nullable: true
+                type: string
+              stacks:
+                items:
+                  properties:
+                    config:
+                      items:
+                        properties:
+                          key:
+                            type: string
+                          path:
+                            nullable: true
+                            type: boolean
+                          secret:
+                            nullable: true
+                            type: boolean
+                          value:
+                            x-kubernetes-preserve-unknown-fields: true
+                          valueFrom:
+                            nullable: true
+                            properties:
+                              env:
+                                nullable: true
+                                type: string
+                              json:
+                                nullable: true
+                                type: boolean
+                              path:
+                                nullable: true
+                                type: string
+                            type: object
+                        required:
+                        - key
+                        type: object
+                      type: array
+                    create:
+                      nullable: true
+                      type: boolean
+                    environment:
+                      items:
+                        type: string
+                      type: array
+                    name:
+                      type: string
+                    secretsProvider:
+                      nullable: true
+                      type: string
+                  required:
+                  - name
+                  type: object
+                type: array
+            type: object
+          status:
+            nullable: true
+            properties:
+              address:
+                nullable: true
+                type: string
+              conditions:
+                items:
+                  description: Kubernetes-style condition (with JsonSchema support). k8s_openapi::Condition doesn't implement JsonSchema, so we define our own compatible type.
+                  properties:
+                    lastTransitionTime:
+                      nullable: true
+                      type: string
+                    message:
+                      nullable: true
+                      type: string
+                    observedGeneration:
+                      default: 0
+                      format: int64
+                      type: integer
+                    reason:
+                      nullable: true
+                      type: string
+                    status:
+                      type: string
+                    type:
+                      type: string
+                  required:
+                  - status
+                  - type
+                  type: object
+                type: array
+              observedGeneration:
+                default: 0
+                format: int64
+                type: integer
+              pulumiVersion:
+                nullable: true
+                type: string
+            type: object
+        required:
+        - spec
+        title: Workspace
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

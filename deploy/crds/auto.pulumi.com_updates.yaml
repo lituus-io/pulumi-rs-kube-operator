@@ -1,0 +1,139 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: updates.auto.pulumi.com
+spec:
+  group: auto.pulumi.com
+  names:
+    categories: []
+    kind: Update
+    plural: updates
+    shortNames:
+    - upd
+    singular: update
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    - jsonPath: .spec.type
+      name: Type
+      type: string
+    - jsonPath: .status.conditions[?(@.type=="Complete")].status
+      name: Complete
+      type: string
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: Auto-generated derived type for UpdateSpec via `CustomResource`
+        properties:
+          spec:
+            description: Update CRD -- auto.pulumi.com/v1alpha1
+            properties:
+              continueOnError:
+                nullable: true
+                type: boolean
+              expectNoChanges:
+                nullable: true
+                type: boolean
+              message:
+                nullable: true
+                type: string
+              parallel:
+                format: int32
+                nullable: true
+                type: integer
+              refresh:
+                nullable: true
+                type: boolean
+              remove:
+                nullable: true
+                type: boolean
+              replace:
+                items:
+                  type: string
+                type: array
+              stackName:
+                nullable: true
+                type: string
+              target:
+                items:
+                  type: string
+                type: array
+              targetDependents:
+                nullable: true
+                type: boolean
+              ttlAfterCompleted:
+                nullable: true
+                type: string
+              type:
+                enum:
+                - preview
+                - up
+                - destroy
+                - refresh
+                nullable: true
+                type: string
+              workspaceName:
+                nullable: true
+                type: string
+            type: object
+          status:
+            nullable: true
+            properties:
+              conditions:
+                items:
+                  description: Kubernetes-style condition (with JsonSchema support). k8s_openapi::Condition doesn't implement JsonSchema, so we define our own compatible type.
+                  properties:
+                    lastTransitionTime:
+                      nullable: true
+                      type: string
+                    message:
+                      nullable: true
+                      type: string
+                    observedGeneration:
+                      default: 0
+                      format: int64
+                      type: integer
+                    reason:
+                      nullable: true
+                      type: string
+                    status:
+                      type: string
+                    type:
+                      type: string
+                  required:
+                  - status
+                  - type
+                  type: object
+                type: array
+              endTime:
+                nullable: true
+                type: string
+              message:
+                nullable: true
+                type: string
+              observedGeneration:
+                default: 0
+                format: int64
+                type: integer
+              outputs:
+                nullable: true
+                type: string
+              permalink:
+                nullable: true
+                type: string
+              startTime:
+                nullable: true
+                type: string
+            type: object
+        required:
+        - spec
+        title: Update
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

@@ -1,0 +1,55 @@
+{{- if and .Values.rbac.create .Values.rbac.createClusterRole -}}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "pulumi-operator.fullname" . }}
+  labels:
+    {{- include "pulumi-operator.labels" . | nindent 4 }}
+rules:
+  # Core resources
+  - apiGroups: [""]
+    resources: [events]
+    verbs: [create, patch]
+  - apiGroups: [""]
+    resources: [secrets]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [""]
+    resources: [pods, services, configmaps, serviceaccounts]
+    verbs: [get, list, watch, create, update, patch, delete]
+  # Apps
+  - apiGroups: [apps]
+    resources: [statefulsets]
+    verbs: [get, list, watch, create, update, patch, delete]
+  # Authentication / authorization (for agent TokenReview)
+  - apiGroups: [authentication.k8s.io]
+    resources: [tokenreviews]
+    verbs: [create]
+  - apiGroups: [authorization.k8s.io]
+    resources: [subjectaccessreviews]
+    verbs: [create]
+  # Pulumi CRDs
+  - apiGroups: [pulumi.com]
+    resources: [stacks, stacks/status, stacks/finalizers]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [pulumi.com]
+    resources: [programs, programs/status, programs/finalizers]
+    verbs: [get, list, watch, create, update, patch, delete]
+  # Auto CRDs
+  - apiGroups: [auto.pulumi.com]
+    resources: [workspaces, workspaces/status, workspaces/finalizers]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [auto.pulumi.com]
+    resources: [workspaces/rpc]
+    verbs: [use]
+  - apiGroups: [auto.pulumi.com]
+    resources: [updates, updates/status, updates/finalizers]
+    verbs: [get, list, watch, create, update, patch, delete]
+  # Flux source-controller (read-only for source resolution)
+  - apiGroups: [source.toolkit.fluxcd.io]
+    resources: [gitrepositories, buckets, ocirepositories]
+    verbs: [get, list, watch]
+  # Coordination (leader election)
+  - apiGroups: [coordination.k8s.io]
+    resources: [leases]
+    verbs: [get, list, watch, create, update, patch, delete]
+{{- end }}
