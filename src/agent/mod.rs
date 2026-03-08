@@ -4,7 +4,6 @@ pub mod init;
 pub mod redact;
 pub mod server;
 
-
 /// Start the agent gRPC server.
 pub async fn serve(
     listen_address: &str,
@@ -17,9 +16,6 @@ pub async fn serve(
 /// Initialize a workspace (run as init container).
 /// `source_dir` is where source code is fetched to (e.g., `/share/source`).
 /// `workspace_dir` is symlinked to `source_dir/{subdir}` (e.g., `/share/workspace`).
-pub async fn init(
-    workspace_dir: &str,
-    source_dir: &str,
-) -> Result<(), crate::errors::RunError> {
+pub async fn init(workspace_dir: &str, source_dir: &str) -> Result<(), crate::errors::RunError> {
     Ok(init::initialize_workspace(workspace_dir, source_dir).await?)
 }

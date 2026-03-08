@@ -24,11 +24,7 @@ pub struct UpdateSpec {
     )]
     pub workspace_name: Option<String>,
 
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        rename = "stackName"
-    )]
+    #[serde(default, skip_serializing_if = "Option::is_none", rename = "stackName")]
     pub stack_name: Option<String>,
 
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "type")]
@@ -86,18 +82,10 @@ pub struct UpdateStatus {
     #[serde(default, rename = "observedGeneration")]
     pub observed_generation: i64,
 
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        rename = "startTime"
-    )]
+    #[serde(default, skip_serializing_if = "Option::is_none", rename = "startTime")]
     pub start_time: Option<String>,
 
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        rename = "endTime"
-    )]
+    #[serde(default, skip_serializing_if = "Option::is_none", rename = "endTime")]
     pub end_time: Option<String>,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]

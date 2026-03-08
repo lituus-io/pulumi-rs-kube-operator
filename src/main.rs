@@ -92,11 +92,8 @@ async fn main() -> Result<(), pulumi_kubernetes_operator::errors::RunError> {
                 %health_probe_bind_address,
                 "starting operator"
             );
-            pulumi_kubernetes_operator::operator::run(
-                max_concurrent_reconciles,
-                leader_elect,
-            )
-            .await?;
+            pulumi_kubernetes_operator::operator::run(max_concurrent_reconciles, leader_elect)
+                .await?;
         }
         Command::Agent {
             listen_address,
@@ -107,14 +104,20 @@ async fn main() -> Result<(), pulumi_kubernetes_operator::errors::RunError> {
             pulumi_kubernetes_operator::agent::serve(&listen_address, &workspace_dir, log_level)
                 .await?;
         }
-        Command::Init { source_dir, workspace_dir } => {
+        Command::Init {
+            source_dir,
+            workspace_dir,
+        } => {
             tracing::info!(%workspace_dir, %source_dir, "initializing workspace");
             pulumi_kubernetes_operator::agent::init(&workspace_dir, &source_dir).await?;
         }
         Command::Webhook { port, secret } => {
-            tracing::info!(port, has_secret = secret.is_some(), "starting webhook server");
-            pulumi_kubernetes_operator::operator::webhook::serve_webhook(port, secret)
-                .await?;
+            tracing::info!(
+                port,
+                has_secret = secret.is_some(),
+                "starting webhook server"
+            );
+            pulumi_kubernetes_operator::operator::webhook::serve_webhook(port, secret).await?;
         }
     }
 

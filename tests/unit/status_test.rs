@@ -11,7 +11,14 @@ fn stack_patch_wraps_with_api_version_and_kind() {
 
 #[test]
 fn condition_produces_all_fields() {
-    let c = condition("Ready", "True", "Completed", "All good", "2024-01-01T00:00:00Z", 5);
+    let c = condition(
+        "Ready",
+        "True",
+        "Completed",
+        "All good",
+        "2024-01-01T00:00:00Z",
+        5,
+    );
     assert_eq!(c["type"], "Ready");
     assert_eq!(c["status"], "True");
     assert_eq!(c["reason"], "Completed");

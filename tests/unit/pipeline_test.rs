@@ -6,17 +6,11 @@ fn reconcile_action_debug_output() {
         ReconcileAction::AddFinalizer,
         ReconcileAction::Done,
         ReconcileAction::RemoveFinalizer,
-        ReconcileAction::WaitForUpdate {
-            name: "u1".into(),
-        },
+        ReconcileAction::WaitForUpdate { name: "u1".into() },
         ReconcileAction::Synced,
         ReconcileAction::WaitForWorkspace,
-        ReconcileAction::UpdateCreated {
-            name: "u2".into(),
-        },
-        ReconcileAction::DestroyStarted {
-            name: "d1".into(),
-        },
+        ReconcileAction::UpdateCreated { name: "u2".into() },
+        ReconcileAction::DestroyStarted { name: "d1".into() },
         ReconcileAction::DestroyFailed {
             name: "d2".into(),
             failures: 3,

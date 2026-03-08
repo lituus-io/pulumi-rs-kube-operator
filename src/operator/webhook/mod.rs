@@ -87,10 +87,7 @@ pub async fn serve_webhook(
         let server_ref: &'static WebhookServer = server;
         tokio::spawn(async move {
             if let Err(e) = http1::Builder::new()
-                .serve_connection(
-                    io,
-                    service_fn(move |req| handle_webhook(req, server_ref)),
-                )
+                .serve_connection(io, service_fn(move |req| handle_webhook(req, server_ref)))
                 .await
             {
                 tracing::debug!(error = %e, "webhook connection error");
@@ -121,9 +118,10 @@ async fn handle_webhook(
                 .map(|s| s.to_owned());
 
             // Read body with size limit
-            let body = match http_body_util::BodyExt::collect(
-                http_body_util::Limited::new(req.into_body(), MAX_WEBHOOK_BODY),
-            )
+            let body = match http_body_util::BodyExt::collect(http_body_util::Limited::new(
+                req.into_body(),
+                MAX_WEBHOOK_BODY,
+            ))
             .await
             {
                 Ok(b) => b.to_bytes(),
@@ -158,9 +156,10 @@ async fn handle_webhook(
                     tracing::debug!(event = %other, "ignoring webhook event");
                     Ok(Response::new(Full::from("{\"status\":\"ignored\"}")))
                 }
-                None => {
-                    Ok(error_response(StatusCode::BAD_REQUEST, "missing X-GitHub-Event"))
-                }
+                None => Ok(error_response(
+                    StatusCode::BAD_REQUEST,
+                    "missing X-GitHub-Event",
+                )),
             }
         }
         "/healthz" => Ok(Response::new(Full::from("ok"))),

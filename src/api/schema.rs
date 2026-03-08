@@ -12,9 +12,12 @@ use schemars::schema::{InstanceType, Schema, SchemaObject};
 /// No `type` constraint so it accepts strings, numbers, booleans, objects, arrays.
 pub fn json_value(_gen: &mut SchemaGenerator) -> Schema {
     Schema::Object(SchemaObject {
-        extensions: [("x-kubernetes-preserve-unknown-fields".to_owned(), serde_json::Value::Bool(true))]
-            .into_iter()
-            .collect(),
+        extensions: [(
+            "x-kubernetes-preserve-unknown-fields".to_owned(),
+            serde_json::Value::Bool(true),
+        )]
+        .into_iter()
+        .collect(),
         ..Default::default()
     })
 }
@@ -27,15 +30,20 @@ pub fn json_value_opt(_gen: &mut SchemaGenerator) -> Schema {
 /// Schema for `Vec<serde_json::Value>` — array of any values.
 pub fn json_value_vec(_gen: &mut SchemaGenerator) -> Schema {
     let items = SchemaObject {
-        extensions: [("x-kubernetes-preserve-unknown-fields".to_owned(), serde_json::Value::Bool(true))]
-            .into_iter()
-            .collect(),
+        extensions: [(
+            "x-kubernetes-preserve-unknown-fields".to_owned(),
+            serde_json::Value::Bool(true),
+        )]
+        .into_iter()
+        .collect(),
         ..Default::default()
     };
     Schema::Object(SchemaObject {
         instance_type: Some(InstanceType::Array.into()),
         array: Some(Box::new(schemars::schema::ArrayValidation {
-            items: Some(schemars::schema::SingleOrVec::Single(Box::new(Schema::Object(items)))),
+            items: Some(schemars::schema::SingleOrVec::Single(Box::new(
+                Schema::Object(items),
+            ))),
             ..Default::default()
         })),
         ..Default::default()
@@ -46,9 +54,12 @@ pub fn json_value_vec(_gen: &mut SchemaGenerator) -> Schema {
 /// Values have no `type` constraint, accepting strings, numbers, booleans, objects, etc.
 pub fn json_value_map(_gen: &mut SchemaGenerator) -> Schema {
     let value_schema = SchemaObject {
-        extensions: [("x-kubernetes-preserve-unknown-fields".to_owned(), serde_json::Value::Bool(true))]
-            .into_iter()
-            .collect(),
+        extensions: [(
+            "x-kubernetes-preserve-unknown-fields".to_owned(),
+            serde_json::Value::Bool(true),
+        )]
+        .into_iter()
+        .collect(),
         ..Default::default()
     };
     Schema::Object(SchemaObject {

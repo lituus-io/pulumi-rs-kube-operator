@@ -220,10 +220,7 @@ pub async fn serve_metrics(
         let io = TokioIo::new(stream);
         tokio::spawn(async move {
             if let Err(e) = http1::Builder::new()
-                .serve_connection(
-                    io,
-                    service_fn(move |req| handle_metrics(req, metrics)),
-                )
+                .serve_connection(io, service_fn(move |req| handle_metrics(req, metrics)))
                 .await
             {
                 tracing::debug!(error = %e, "metrics connection error");

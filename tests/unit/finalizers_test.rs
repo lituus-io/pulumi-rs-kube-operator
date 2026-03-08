@@ -12,10 +12,9 @@ fn make_program(has_finalizer: bool, deleting: bool) -> Program {
         program.metadata.finalizers = Some(vec![PROGRAM_FINALIZER.to_owned()]);
     }
     if deleting {
-        program.metadata.deletion_timestamp =
-            Some(k8s_openapi::apimachinery::pkg::apis::meta::v1::Time(
-                chrono::Utc::now(),
-            ));
+        program.metadata.deletion_timestamp = Some(
+            k8s_openapi::apimachinery::pkg::apis::meta::v1::Time(chrono::Utc::now()),
+        );
     }
     program
 }

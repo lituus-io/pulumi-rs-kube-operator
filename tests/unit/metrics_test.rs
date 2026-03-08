@@ -92,8 +92,14 @@ fn encode_returns_valid_prometheus_text() {
 fn default_same_as_new() {
     let d = Metrics::default();
     let n = Metrics::new();
-    assert_eq!(d.reconciles_total.load(Relaxed), n.reconciles_total.load(Relaxed));
-    assert_eq!(d.reconcile_errors.load(Relaxed), n.reconcile_errors.load(Relaxed));
+    assert_eq!(
+        d.reconciles_total.load(Relaxed),
+        n.reconciles_total.load(Relaxed)
+    );
+    assert_eq!(
+        d.reconcile_errors.load(Relaxed),
+        n.reconcile_errors.load(Relaxed)
+    );
     assert_eq!(d.active_actors.load(Relaxed), n.active_actors.load(Relaxed));
 }
 

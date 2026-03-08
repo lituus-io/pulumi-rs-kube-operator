@@ -13,7 +13,9 @@ fn from_spec_git_source() {
     spec.project_repo = Some("https://github.com/test/repo".into());
     spec.branch = Some("main".into());
     let source = SourceKind::from_spec(&spec).unwrap();
-    assert!(matches!(source, SourceKind::Git { repo, .. } if repo == "https://github.com/test/repo"));
+    assert!(
+        matches!(source, SourceKind::Git { repo, .. } if repo == "https://github.com/test/repo")
+    );
 }
 
 #[test]

@@ -52,21 +52,13 @@ pub struct StackSpec {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub commit: Option<String>,
 
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        rename = "repoDir"
-    )]
+    #[serde(default, skip_serializing_if = "Option::is_none", rename = "repoDir")]
     pub repo_dir: Option<String>,
 
     #[serde(default)]
     pub shallow: bool,
 
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        rename = "gitAuth"
-    )]
+    #[serde(default, skip_serializing_if = "Option::is_none", rename = "gitAuth")]
     pub git_auth: Option<GitAuthConfig>,
 
     #[serde(
@@ -84,11 +76,7 @@ pub struct StackSpec {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub secrets: Option<BTreeMap<String, String>>,
 
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        rename = "configRef"
-    )]
+    #[serde(default, skip_serializing_if = "Option::is_none", rename = "configRef")]
     pub config_ref: Option<BTreeMap<String, ConfigMapRef>>,
 
     #[serde(
@@ -113,21 +101,13 @@ pub struct StackSpec {
     )]
     pub access_token_secret: Option<String>,
 
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        rename = "envRefs"
-    )]
+    #[serde(default, skip_serializing_if = "Option::is_none", rename = "envRefs")]
     pub env_refs: Option<BTreeMap<String, ResourceRef>>,
 
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub envs: Vec<String>,
 
-    #[serde(
-        default,
-        skip_serializing_if = "Vec::is_empty",
-        rename = "envSecrets"
-    )]
+    #[serde(default, skip_serializing_if = "Vec::is_empty", rename = "envSecrets")]
     pub secret_envs: Vec<String>,
 
     // --- Lifecycle ---
@@ -206,24 +186,15 @@ pub struct StackSpec {
     pub retry_max_backoff_duration_seconds: i64,
 
     // --- Lock & timeout controls ---
-    #[serde(
-        default = "default_lock_timeout",
-        rename = "lockTimeoutSeconds"
-    )]
+    #[serde(default = "default_lock_timeout", rename = "lockTimeoutSeconds")]
     #[schemars(range(min = 60, max = 7200))]
     pub lock_timeout_seconds: i64,
 
-    #[serde(
-        default = "default_op_timeout",
-        rename = "operationTimeoutSeconds"
-    )]
+    #[serde(default = "default_op_timeout", rename = "operationTimeoutSeconds")]
     #[schemars(range(min = 60, max = 86400))]
     pub operation_timeout_seconds: i64,
 
-    #[serde(
-        default = "default_fin_timeout",
-        rename = "finalizerTimeoutSeconds"
-    )]
+    #[serde(default = "default_fin_timeout", rename = "finalizerTimeoutSeconds")]
     #[schemars(range(min = 60, max = 86400))]
     pub finalizer_timeout_seconds: i64,
 
@@ -308,7 +279,11 @@ pub struct StackUpdateState {
     #[serde(default)]
     pub generation: i64,
 
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "reconcileRequest")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "reconcileRequest"
+    )]
     pub reconcile_request: Option<String>,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -356,7 +331,11 @@ pub struct CurrentStackUpdate {
     #[serde(default)]
     pub generation: i64,
 
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "reconcileRequest")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "reconcileRequest"
+    )]
     pub reconcile_request: Option<String>,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -401,18 +380,10 @@ pub struct GitAuthConfig {
     )]
     pub personal_access_token: Option<ResourceRef>,
 
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        rename = "sshAuth"
-    )]
+    #[serde(default, skip_serializing_if = "Option::is_none", rename = "sshAuth")]
     pub ssh_auth: Option<SSHAuth>,
 
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        rename = "basicAuth"
-    )]
+    #[serde(default, skip_serializing_if = "Option::is_none", rename = "basicAuth")]
     pub basic_auth: Option<BasicAuth>,
 }
 
@@ -451,11 +422,7 @@ pub struct ResourceRef {
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "secret")]
     pub secret_ref: Option<SecretSelector>,
 
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        rename = "literal"
-    )]
+    #[serde(default, skip_serializing_if = "Option::is_none", rename = "literal")]
     pub literal_ref: Option<LiteralRef>,
 }
 
@@ -595,7 +562,11 @@ pub struct ProjectCheckStatus {
 #[derive(Deserialize, Serialize, Clone, Debug, JsonSchema)]
 pub struct NotificationWebhook {
     pub url: String,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "authSecret")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "authSecret"
+    )]
     pub auth_secret: Option<WebhookAuthSecret>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub events: Vec<NotificationEventFilter>,

@@ -10,7 +10,9 @@ fn all_transient_errors_map_to_retry() {
         TransientError::UpdateNotFound,
         TransientError::ArtifactNotReady,
         TransientError::PrerequisiteNotSatisfied,
-        TransientError::AgentRetriable { message: "test".into() },
+        TransientError::AgentRetriable {
+            message: "test".into(),
+        },
         TransientError::OperationTimeout,
         TransientError::KubeApi {
             reason: "test error",
@@ -29,7 +31,10 @@ fn all_transient_errors_map_to_retry() {
     for t in transients {
         let err = OperatorError::Transient(t);
         assert!(
-            matches!(recovery_action(&err), RecoveryAction::RetryWithBackoff { .. }),
+            matches!(
+                recovery_action(&err),
+                RecoveryAction::RetryWithBackoff { .. }
+            ),
             "expected RetryWithBackoff for {:?}",
             err
         );
@@ -43,7 +48,9 @@ fn all_permanent_errors_map_to_stall() {
         PermanentError::SpecInvalid { field: "test" },
         PermanentError::SourceUnavailable,
         PermanentError::PulumiVersionTooLow,
-        PermanentError::ArtifactBuildFailed { message: "test".into() },
+        PermanentError::ArtifactBuildFailed {
+            message: "test".into(),
+        },
         PermanentError::InvalidAccessToken,
         PermanentError::UpdateFailed,
         PermanentError::ProgramNotFound,
@@ -84,7 +91,10 @@ fn condition_reasons_are_all_non_empty() {
         PermanentError::SpecInvalid { field: "a" }.into(),
         PermanentError::SourceUnavailable.into(),
         PermanentError::PulumiVersionTooLow.into(),
-        PermanentError::ArtifactBuildFailed { message: "test".into() }.into(),
+        PermanentError::ArtifactBuildFailed {
+            message: "test".into(),
+        }
+        .into(),
         PermanentError::InvalidAccessToken.into(),
         PermanentError::UpdateFailed.into(),
         PermanentError::ProgramNotFound.into(),

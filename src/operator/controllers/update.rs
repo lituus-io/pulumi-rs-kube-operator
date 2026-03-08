@@ -63,10 +63,7 @@ pub async fn check_update(
         .find(|c| c.type_ == UPDATE_COMPLETE);
 
     // Check for Failed condition
-    let failed = status
-        .conditions
-        .iter()
-        .find(|c| c.type_ == UPDATE_FAILED);
+    let failed = status.conditions.iter().find(|c| c.type_ == UPDATE_FAILED);
 
     if let Some(complete_cond) = complete {
         if complete_cond.status == "True" {
@@ -114,12 +111,11 @@ pub async fn stream_update(
     let guard = mgr.pool.lend(workspace_address).await?;
     let channel = guard.channel();
 
-    let mut client =
-        crate::proto::agent::automation_service_client::AutomationServiceClient::new(
-            channel.clone(),
-        )
-        .max_decoding_message_size(16 * 1024 * 1024) // 16 MiB
-        .max_encoding_message_size(4 * 1024 * 1024); // 4 MiB
+    let mut client = crate::proto::agent::automation_service_client::AutomationServiceClient::new(
+        channel.clone(),
+    )
+    .max_decoding_message_size(16 * 1024 * 1024) // 16 MiB
+    .max_encoding_message_size(4 * 1024 * 1024); // 4 MiB
 
     let spec = &update.spec;
     let mut result = StreamResult::default();
@@ -128,10 +124,7 @@ pub async fn stream_update(
     // Non-fatal: YAML programs with standard providers may not need explicit install
     // since providers are auto-resolved from resource type tokens during up/destroy.
     tracing::info!("installing project dependencies");
-    if let Err(e) = client
-        .install(crate::proto::agent::InstallRequest {})
-        .await
-    {
+    if let Err(e) = client.install(crate::proto::agent::InstallRequest {}).await {
         tracing::warn!(error = %e, "install failed (continuing — providers may auto-resolve)");
     }
 
@@ -358,9 +351,7 @@ pub async fn stream_update(
         }
         None => {
             return Err(OperatorError::Permanent(
-                crate::errors::PermanentError::SpecInvalid {
-                    field: "type",
-                },
+                crate::errors::PermanentError::SpecInvalid { field: "type" },
             ));
         }
     }
@@ -398,10 +389,7 @@ pub fn build_output_secret(
 
     let mut annotations = BTreeMap::new();
     if !secret_keys.is_empty() {
-        annotations.insert(
-            SECRET_OUTPUTS_ANN.to_owned(),
-            secret_keys.join(","),
-        );
+        annotations.insert(SECRET_OUTPUTS_ANN.to_owned(), secret_keys.join(","));
     }
 
     Secret {
@@ -499,7 +487,10 @@ mod tests {
             owner_ref,
         );
 
-        assert_eq!(secret.metadata.name.as_deref(), Some("test-update-stack-outputs"));
+        assert_eq!(
+            secret.metadata.name.as_deref(),
+            Some("test-update-stack-outputs")
+        );
         assert_eq!(secret.immutable, Some(true));
 
         let string_data = secret.string_data.as_ref().unwrap();

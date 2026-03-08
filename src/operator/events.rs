@@ -30,17 +30,37 @@ impl Severity {
 
 /// All significant lifecycle events for a Stack. Borrows data from the caller.
 pub enum StackEvent<'a> {
-    UpdateCreated { update_name: &'a str },
-    UpdateSucceeded { update_name: &'a str, permalink: Option<&'a str> },
-    UpdateFailed { update_name: &'a str, message: &'a str },
-    LockConflict { update_name: &'a str },
-    DestroyStarted { update_name: &'a str },
-    DestroyFailed { update_name: &'a str, attempt: i64 },
+    UpdateCreated {
+        update_name: &'a str,
+    },
+    UpdateSucceeded {
+        update_name: &'a str,
+        permalink: Option<&'a str>,
+    },
+    UpdateFailed {
+        update_name: &'a str,
+        message: &'a str,
+    },
+    LockConflict {
+        update_name: &'a str,
+    },
+    DestroyStarted {
+        update_name: &'a str,
+    },
+    DestroyFailed {
+        update_name: &'a str,
+        attempt: i64,
+    },
     DestroySucceeded,
     WorkspaceDeleted,
     ForceUnlocked,
-    Stalled { reason: &'static str, message: &'a str },
-    ProjectNotFound { project_id: &'a str },
+    Stalled {
+        reason: &'static str,
+        message: &'a str,
+    },
+    ProjectNotFound {
+        project_id: &'a str,
+    },
     ProjectTtlExpired,
 }
 
@@ -87,14 +107,20 @@ impl<'a> StackEvent<'a> {
             Self::UpdateCreated { update_name } => {
                 format!("Update {} created", update_name)
             }
-            Self::UpdateSucceeded { update_name, permalink } => {
+            Self::UpdateSucceeded {
+                update_name,
+                permalink,
+            } => {
                 if let Some(link) = permalink {
                     format!("Update {} succeeded ({})", update_name, link)
                 } else {
                     format!("Update {} succeeded", update_name)
                 }
             }
-            Self::UpdateFailed { update_name, message } => {
+            Self::UpdateFailed {
+                update_name,
+                message,
+            } => {
                 format!("Update {} failed: {}", update_name, message)
             }
             Self::LockConflict { update_name } => {
@@ -103,7 +129,10 @@ impl<'a> StackEvent<'a> {
             Self::DestroyStarted { update_name } => {
                 format!("Destroy {} started", update_name)
             }
-            Self::DestroyFailed { update_name, attempt } => {
+            Self::DestroyFailed {
+                update_name,
+                attempt,
+            } => {
                 format!("Destroy {} failed (attempt {})", update_name, attempt)
             }
             Self::DestroySucceeded => "Stack destroyed successfully".to_owned(),
@@ -115,9 +144,7 @@ impl<'a> StackEvent<'a> {
             Self::ProjectNotFound { project_id } => {
                 format!("Project {} not found, grace period started", project_id)
             }
-            Self::ProjectTtlExpired => {
-                "Project grace period expired, executing cleanup".to_owned()
-            }
+            Self::ProjectTtlExpired => "Project grace period expired, executing cleanup".to_owned(),
         }
     }
 
@@ -278,14 +305,14 @@ impl EventRecorder {
         let secrets: Api<Secret> = Api::namespaced(self.client.clone(), &ns);
         let secret = secrets.get(name).await?;
         let data = secret.data.unwrap_or_default();
-        let bytes = data
-            .get(key)
-            .ok_or_else(|| kube::Error::Api(kube::core::ErrorResponse {
+        let bytes = data.get(key).ok_or_else(|| {
+            kube::Error::Api(kube::core::ErrorResponse {
                 code: 404,
                 message: format!("key '{}' not found in secret '{}'", key, name),
                 reason: "NotFound".into(),
                 status: "Failure".into(),
-            }))?;
+            })
+        })?;
         Ok(String::from_utf8_lossy(&bytes.0).into_owned())
     }
 }
@@ -318,7 +345,10 @@ fn build_payload(stack: &Stack, event: &StackEvent<'_>) -> serde_json::Value {
         | StackEvent::DestroyFailed { update_name, .. } => {
             payload["update"] = serde_json::json!({ "name": update_name });
         }
-        StackEvent::UpdateSucceeded { update_name, permalink } => {
+        StackEvent::UpdateSucceeded {
+            update_name,
+            permalink,
+        } => {
             payload["update"] = serde_json::json!({
                 "name": update_name,
                 "permalink": permalink,

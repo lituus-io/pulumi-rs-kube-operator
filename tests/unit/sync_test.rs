@@ -23,7 +23,11 @@ fn cooldown_never_exceeds_cap() {
     let stack = Stack::new("test", default_spec());
     for i in 0..50 {
         let c = cooldown(i, &stack);
-        assert!(c <= Duration::from_secs(86400), "exceeded 24h at failures={}", i);
+        assert!(
+            c <= Duration::from_secs(86400),
+            "exceeded 24h at failures={}",
+            i
+        );
     }
 }
 
@@ -34,7 +38,11 @@ fn cooldown_respects_custom_cap() {
     let stack = Stack::new("test", spec);
     for i in 0..50 {
         let c = cooldown(i, &stack);
-        assert!(c <= Duration::from_secs(120), "exceeded 120s at failures={}", i);
+        assert!(
+            c <= Duration::from_secs(120),
+            "exceeded 120s at failures={}",
+            i
+        );
     }
 }
 

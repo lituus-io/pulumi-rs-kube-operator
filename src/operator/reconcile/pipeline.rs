@@ -30,7 +30,6 @@ pub enum ReconcileAction {
     UpdateCreated { name: String },
 
     // --- Destroy flow (multi-reconcile state machine) ---
-
     /// Destroy Update has been created, waiting for completion.
     DestroyStarted { name: String },
     /// Destroy Update completed but failed. Stack marked failed, will retry.
@@ -38,7 +37,6 @@ pub enum ReconcileAction {
     /// Destroy completed successfully. Remove finalizer now.
     RemoveFinalizerAfterDestroy,
     // --- Project verification flow ---
-
     /// Project not found — start or continue grace period.
     ProjectNotFound { project_id: String },
     /// Project was found again — clear pending deletion.
@@ -181,11 +179,7 @@ pub async fn run_pipeline(
     }
 
     // Step 6: Check prerequisites (synchronous Store lookups, no API round-trips)
-    super::prerequisites::check_prerequisites(
-        &mgr.stores.stacks,
-        ns,
-        &stack.spec.prerequisites,
-    )?;
+    super::prerequisites::check_prerequisites(&mgr.stores.stacks, ns, &stack.spec.prerequisites)?;
 
     // Step 7: Ensure Workspace (SSA patch)
     let ws_ready = ensure_workspace(mgr, key, stack).await?;
@@ -335,8 +329,12 @@ async fn create_destroy_update(
         block_owner_deletion: Some(true),
     };
 
-    let update =
-        crate::operator::finalizers::build_update_with_finalizer(&update_name, ns, spec, stack_owner_ref);
+    let update = crate::operator::finalizers::build_update_with_finalizer(
+        &update_name,
+        ns,
+        spec,
+        stack_owner_ref,
+    );
 
     let updates: Api<Update> = Api::namespaced(mgr.client.clone(), ns);
     updates
@@ -363,18 +361,15 @@ async fn ensure_program_finalizer(
     use kube::api::{Patch, PatchParams};
 
     let programs: Api<Program> = Api::namespaced(mgr.client.clone(), ns);
-    let program = programs
-        .get(program_name)
-        .await
-        .map_err(|e| match &e {
-            kube::Error::Api(api_err) if api_err.code == 404 => {
-                OperatorError::Permanent(crate::errors::PermanentError::ProgramNotFound)
-            }
-            _ => OperatorError::Transient(crate::errors::TransientError::KubeApiDetailed {
-                reason: "failed to get program",
-                source: e,
-            }),
-        })?;
+    let program = programs.get(program_name).await.map_err(|e| match &e {
+        kube::Error::Api(api_err) if api_err.code == 404 => {
+            OperatorError::Permanent(crate::errors::PermanentError::ProgramNotFound)
+        }
+        _ => OperatorError::Transient(crate::errors::TransientError::KubeApiDetailed {
+            reason: "failed to get program",
+            source: e,
+        }),
+    })?;
 
     if !program.finalizers().iter().any(|f| f == PROGRAM_FINALIZER) {
         tracing::debug!(program = %program_name, "adding program protection finalizer");
@@ -422,8 +417,7 @@ async fn ensure_workspace(
 
     // Look up the program artifact URL if this stack uses programRef
     let program_url = stack.spec.program_ref.as_ref().and_then(|pr| {
-        let prog_key =
-            kube::runtime::reflector::ObjectRef::new(&pr.name).within(ns);
+        let prog_key = kube::runtime::reflector::ObjectRef::new(&pr.name).within(ns);
         mgr.stores.programs.get(&prog_key).and_then(|prog| {
             prog.status
                 .as_ref()
@@ -445,9 +439,21 @@ async fn ensure_workspace(
 
             let sts_api: Api<StatefulSet> = Api::namespaced(mgr.client.clone(), ns);
             let ws_resource_name = format!("{}-workspace", key.name);
-            let sts = build_statefulset(&ws, key.name.as_str(), ns, owner_ref.clone(), &image, extra_env, program_url.as_deref());
+            let sts = build_statefulset(
+                &ws,
+                key.name.as_str(),
+                ns,
+                owner_ref.clone(),
+                &image,
+                extra_env,
+                program_url.as_deref(),
+            );
             sts_api
-                .patch(&ws_resource_name, &PatchParams::apply(FIELD_MANAGER), &Patch::Apply(&sts))
+                .patch(
+                    &ws_resource_name,
+                    &PatchParams::apply(FIELD_MANAGER),
+                    &Patch::Apply(&sts),
+                )
                 .await
                 .map_err(|e| {
                     OperatorError::Transient(crate::errors::TransientError::KubeApiDetailed {
@@ -459,7 +465,11 @@ async fn ensure_workspace(
             let svc_api: Api<Service> = Api::namespaced(mgr.client.clone(), ns);
             let svc = build_headless_service(key.name.as_str(), ns, owner_ref);
             svc_api
-                .patch(&ws_resource_name, &PatchParams::apply(FIELD_MANAGER), &Patch::Apply(&svc))
+                .patch(
+                    &ws_resource_name,
+                    &PatchParams::apply(FIELD_MANAGER),
+                    &Patch::Apply(&svc),
+                )
                 .await
                 .map_err(|e| {
                     OperatorError::Transient(crate::errors::TransientError::KubeApiDetailed {
@@ -490,9 +500,8 @@ async fn ensure_workspace(
             ws.metadata.namespace = Some(ns.to_owned());
 
             // Set Stack as owner of Workspace
-            ws.metadata.owner_references = Some(vec![
-                crate::api::owner::stack_owner_ref(stack, true),
-            ]);
+            ws.metadata.owner_references =
+                Some(vec![crate::api::owner::stack_owner_ref(stack, true)]);
 
             workspaces
                 .create(&kube::api::PostParams::default(), &ws)
@@ -555,9 +564,10 @@ async fn create_update(
 
     let updates: Api<Update> = Api::namespaced(mgr.client.clone(), ns);
 
-    let build_update = |s: UpdateSpec, o: k8s_openapi::apimachinery::pkg::apis::meta::v1::OwnerReference| {
-        crate::operator::finalizers::build_update_with_finalizer(&update_name, ns, s, o)
-    };
+    let build_update =
+        |s: UpdateSpec, o: k8s_openapi::apimachinery::pkg::apis::meta::v1::OwnerReference| {
+            crate::operator::finalizers::build_update_with_finalizer(&update_name, ns, s, o)
+        };
 
     let update = build_update(spec, owner_ref.clone());
     match updates
@@ -610,10 +620,12 @@ async fn create_update(
                         .create(&kube::api::PostParams::default(), &retry_update)
                         .await
                         .map_err(|e| {
-                            OperatorError::Transient(crate::errors::TransientError::KubeApiDetailed {
-                                reason: "failed to recreate update after stale delete",
-                                source: e,
-                            })
+                            OperatorError::Transient(
+                                crate::errors::TransientError::KubeApiDetailed {
+                                    reason: "failed to recreate update after stale delete",
+                                    source: e,
+                                },
+                            )
                         })?;
                     tracing::info!(key = %key, update = %update_name, "recreated update");
                     Ok(update_name)

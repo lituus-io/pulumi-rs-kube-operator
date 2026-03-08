@@ -117,7 +117,10 @@ impl<S> CancellableStream<S> {
 
 impl<S: futures::Stream> futures::Stream for CancellableStream<S> {
     type Item = S::Item;
-    fn poll_next(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Option<Self::Item>> {
+    fn poll_next(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> Poll<Option<Self::Item>> {
         self.project().inner.poll_next(cx)
     }
 }
@@ -164,10 +167,7 @@ impl AutomationService for AgentServer {
         Ok(Response::new(SelectStackResult { summary: None }))
     }
 
-    async fn info(
-        &self,
-        _request: Request<InfoRequest>,
-    ) -> Result<Response<InfoResult>, Status> {
+    async fn info(&self, _request: Request<InfoRequest>) -> Result<Response<InfoResult>, Status> {
         Ok(Response::new(InfoResult { summary: None }))
     }
 
@@ -284,14 +284,14 @@ impl AutomationService for AgentServer {
             let result = run_pulumi_streaming(&workspace_dir, &args, cancel_clone).await;
             let _ = tx
                 .send(Ok(crate::proto::agent::PreviewStream {
-                    response: Some(
-                        crate::proto::agent::preview_stream::Response::Result(PreviewResult {
+                    response: Some(crate::proto::agent::preview_stream::Response::Result(
+                        PreviewResult {
                             stdout: result.stdout,
                             stderr: redact_stderr(&result.stderr).into_owned(),
                             summary: None,
                             permalink: result.permalink,
-                        }),
-                    ),
+                        },
+                    )),
                 }))
                 .await;
         });
@@ -337,14 +337,14 @@ impl AutomationService for AgentServer {
             let result = run_pulumi_streaming(&workspace_dir, &args, cancel_clone).await;
             let _ = tx
                 .send(Ok(crate::proto::agent::RefreshStream {
-                    response: Some(
-                        crate::proto::agent::refresh_stream::Response::Result(RefreshResult {
+                    response: Some(crate::proto::agent::refresh_stream::Response::Result(
+                        RefreshResult {
                             stdout: result.stdout,
                             stderr: redact_stderr(&result.stderr).into_owned(),
                             summary: None,
                             permalink: result.permalink,
-                        }),
-                    ),
+                        },
+                    )),
                 }))
                 .await;
         });
@@ -355,12 +355,10 @@ impl AutomationService for AgentServer {
         )))
     }
 
-    type UpStream = CancellableStream<tokio_stream::wrappers::ReceiverStream<Result<UpStream, Status>>>;
+    type UpStream =
+        CancellableStream<tokio_stream::wrappers::ReceiverStream<Result<UpStream, Status>>>;
 
-    async fn up(
-        &self,
-        request: Request<UpRequest>,
-    ) -> Result<Response<Self::UpStream>, Status> {
+    async fn up(&self, request: Request<UpRequest>) -> Result<Response<Self::UpStream>, Status> {
         let req = request.into_inner();
         tracing::info!("Up: starting");
 
@@ -372,7 +370,13 @@ impl AutomationService for AgentServer {
         tokio::spawn(async move {
             let parallel_str = req.parallel.map(|p| p.to_string());
 
-            let mut args: Vec<&str> = vec!["up", "--yes", "--non-interactive", "--suppress-progress", "--json"];
+            let mut args: Vec<&str> = vec![
+                "up",
+                "--yes",
+                "--non-interactive",
+                "--suppress-progress",
+                "--json",
+            ];
             if let Some(ref p) = parallel_str {
                 args.extend(["--parallel", p.as_str()]);
             }
@@ -416,13 +420,15 @@ impl AutomationService for AgentServer {
                 tracing::info!("Up: completed successfully");
                 let _ = tx
                     .send(Ok(crate::proto::agent::UpStream {
-                        response: Some(crate::proto::agent::up_stream::Response::Result(UpResult {
-                            stdout: result.stdout,
-                            stderr: redact_stderr(&result.stderr).into_owned(),
-                            summary: None,
-                            permalink: result.permalink,
-                            outputs: result.outputs,
-                        })),
+                        response: Some(crate::proto::agent::up_stream::Response::Result(
+                            UpResult {
+                                stdout: result.stdout,
+                                stderr: redact_stderr(&result.stderr).into_owned(),
+                                summary: None,
+                                permalink: result.permalink,
+                                outputs: result.outputs,
+                            },
+                        )),
                     }))
                     .await;
             }
@@ -493,14 +499,14 @@ impl AutomationService for AgentServer {
                 tracing::info!("Destroy: completed successfully");
                 let _ = tx
                     .send(Ok(crate::proto::agent::DestroyStream {
-                        response: Some(
-                            crate::proto::agent::destroy_stream::Response::Result(DestroyResult {
+                        response: Some(crate::proto::agent::destroy_stream::Response::Result(
+                            DestroyResult {
                                 stdout: result.stdout,
                                 stderr: redact_stderr(&result.stderr).into_owned(),
                                 summary: None,
                                 permalink: result.permalink,
-                            }),
-                        ),
+                            },
+                        )),
                     }))
                     .await;
             }
@@ -686,9 +692,11 @@ fn prost_value_to_json_string(value: &prost_types::Value) -> String {
         Some(Kind::BoolValue(b)) => b.to_string(),
         Some(Kind::StructValue(s)) => {
             // Manual JSON serialization for prost Struct
-            let pairs: Vec<String> = s.fields.iter().map(|(k, v)| {
-                format!("\"{}\":{}", k, prost_value_to_json_string(v))
-            }).collect();
+            let pairs: Vec<String> = s
+                .fields
+                .iter()
+                .map(|(k, v)| format!("\"{}\":{}", k, prost_value_to_json_string(v)))
+                .collect();
             format!("{{{}}}", pairs.join(","))
         }
         Some(Kind::ListValue(l)) => {
@@ -736,7 +744,7 @@ pub async fn run_server(
     tonic::transport::Server::builder()
         .add_service(
             AutomationServiceServer::new(server)
-                .max_decoding_message_size(4 * 1024 * 1024)  // 4 MiB
+                .max_decoding_message_size(4 * 1024 * 1024) // 4 MiB
                 .max_encoding_message_size(16 * 1024 * 1024), // 16 MiB (state can be large)
         )
         .serve(addr)

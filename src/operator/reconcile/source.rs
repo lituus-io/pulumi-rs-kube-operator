@@ -62,11 +62,7 @@ impl<'spec> SourceKind<'spec> {
     }
 
     /// Resolve the source to get commit/revision info.
-    pub async fn resolve(
-        &self,
-        mgr: &Manager,
-        ns: &str,
-    ) -> Result<SourceInfo, OperatorError> {
+    pub async fn resolve(&self, mgr: &Manager, ns: &str) -> Result<SourceInfo, OperatorError> {
         match self {
             Self::Git {
                 repo: _,
@@ -74,16 +70,12 @@ impl<'spec> SourceKind<'spec> {
                 commit,
             } => resolve_git(*commit),
             Self::Flux { source } => resolve_flux(&mgr.client, ns, source).await,
-            Self::Program { program_ref } => {
-                resolve_program(&mgr.stores.programs, ns, program_ref)
-            }
+            Self::Program { program_ref } => resolve_program(&mgr.stores.programs, ns, program_ref),
         }
     }
 }
 
-fn resolve_git(
-    commit: Option<&str>,
-) -> Result<SourceInfo, OperatorError> {
+fn resolve_git(commit: Option<&str>) -> Result<SourceInfo, OperatorError> {
     // For git sources, the commit is determined by the agent during workspace init.
     // Here we use the specified commit or a placeholder that will be resolved later.
     let commit = match commit {
@@ -120,17 +112,14 @@ async fn resolve_flux(
 
     let dynapi: Api<DynamicObject> = Api::namespaced_with(client.clone(), ns, &ar);
 
-    let obj = dynapi
-        .get(&source_ref.name)
-        .await
-        .map_err(|e| match e {
-            kube::Error::Api(ref api_err) if api_err.code == 404 => {
-                OperatorError::Permanent(PermanentError::SourceUnavailable)
-            }
-            _ => OperatorError::Transient(TransientError::KubeApi {
-                reason: "failed to get Flux source",
-            }),
-        })?;
+    let obj = dynapi.get(&source_ref.name).await.map_err(|e| match e {
+        kube::Error::Api(ref api_err) if api_err.code == 404 => {
+            OperatorError::Permanent(PermanentError::SourceUnavailable)
+        }
+        _ => OperatorError::Transient(TransientError::KubeApi {
+            reason: "failed to get Flux source",
+        }),
+    })?;
 
     // Extract status.artifact.revision from the dynamic object
     let revision = obj

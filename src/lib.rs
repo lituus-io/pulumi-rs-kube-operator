@@ -6,8 +6,8 @@ pub mod api;
 pub mod core;
 pub mod errors;
 
-pub mod operator;
 pub mod agent;
+pub mod operator;
 
 pub mod proto {
     pub mod agent {

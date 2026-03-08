@@ -2,18 +2,15 @@ use std::collections::BTreeMap;
 
 use k8s_openapi::api::apps::v1::{StatefulSet, StatefulSetSpec};
 use k8s_openapi::api::core::v1::{
-    Container, ContainerPort, EmptyDirVolumeSource, EnvVar, EnvVarSource, PodSpec,
-    PodTemplateSpec, SecretKeySelector, SecurityContext, Service, ServicePort, ServiceSpec, Volume,
-    VolumeMount,
+    Container, ContainerPort, EmptyDirVolumeSource, EnvVar, EnvVarSource, PodSpec, PodTemplateSpec,
+    SecretKeySelector, SecurityContext, Service, ServicePort, ServiceSpec, Volume, VolumeMount,
 };
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::{LabelSelector, ObjectMeta, OwnerReference};
 use k8s_openapi::apimachinery::pkg::util::intstr::IntOrString;
 use kube::Api;
 use sha2::{Digest, Sha256};
 
-use crate::api::conditions::{
-    AUTO_COMPONENT_LABEL, POD_REVISION_HASH_ANN, WORKSPACE_NAME_LABEL,
-};
+use crate::api::conditions::{AUTO_COMPONENT_LABEL, POD_REVISION_HASH_ANN, WORKSPACE_NAME_LABEL};
 use crate::api::stack::{ResourceSelectorType, Stack};
 use crate::api::workspace::{SecurityProfile, Workspace, WorkspaceSpec};
 use crate::errors::{OperatorError, TransientError};
@@ -32,8 +29,10 @@ pub fn agent_image() -> String {
 pub fn build_workspace_spec(stack: &Stack) -> WorkspaceSpec {
     let spec = &stack.spec;
 
-    let git = spec.project_repo.as_ref().map(|repo| {
-        crate::api::workspace::WorkspaceGitSource {
+    let git = spec
+        .project_repo
+        .as_ref()
+        .map(|repo| crate::api::workspace::WorkspaceGitSource {
             url: Some(repo.clone()),
             git_ref: spec
                 .branch
@@ -43,16 +42,16 @@ pub fn build_workspace_spec(stack: &Stack) -> WorkspaceSpec {
             dir: spec.repo_dir.clone(),
             auth: None,
             shallow: spec.shallow,
-        }
-    });
+        });
 
-    let flux = spec.flux_source.as_ref().map(|fs| {
-        crate::api::workspace::WorkspaceFluxSource {
+    let flux = spec
+        .flux_source
+        .as_ref()
+        .map(|fs| crate::api::workspace::WorkspaceFluxSource {
             url: None,
             digest: None,
             dir: fs.dir.clone(),
-        }
-    });
+        });
 
     let stacks = vec![crate::api::workspace::WorkspaceStack {
         name: spec.stack.to_string(),
@@ -234,9 +233,7 @@ pub fn build_statefulset(
     let fetch = Container {
         name: "fetch".to_owned(),
         image: Some(image.to_owned()),
-        command: Some(vec![
-            "/usr/local/bin/pulumi-kubernetes-operator".to_owned(),
-        ]),
+        command: Some(vec!["/usr/local/bin/pulumi-kubernetes-operator".to_owned()]),
         args: Some(vec!["init".to_owned()]),
         env: if fetch_env.is_empty() {
             None
@@ -344,11 +341,7 @@ pub fn build_statefulset(
 }
 
 /// Build the headless service for the workspace.
-pub fn build_headless_service(
-    ws_name: &str,
-    ns: &str,
-    owner_ref: OwnerReference,
-) -> Service {
+pub fn build_headless_service(ws_name: &str, ns: &str, owner_ref: OwnerReference) -> Service {
     let svc_name = format!("{}-workspace", ws_name);
     let labels: BTreeMap<String, String> = [
         (AUTO_COMPONENT_LABEL.to_owned(), "workspace".to_owned()),
@@ -473,21 +466,24 @@ mod tests {
             shallow: false,
         });
 
-        Workspace::new(name, WorkspaceSpec {
-            service_account_name: Some("pulumi".to_owned()),
-            security_profile: SecurityProfile::Restricted,
-            image: None,
-            image_pull_policy: None,
-            git,
-            flux: None,
-            local: None,
-            env_from: vec![],
-            env: vec![],
-            resources: None,
-            pod_template: None,
-            pulumi_log_verbosity: 0,
-            stacks: vec![],
-        })
+        Workspace::new(
+            name,
+            WorkspaceSpec {
+                service_account_name: Some("pulumi".to_owned()),
+                security_profile: SecurityProfile::Restricted,
+                image: None,
+                image_pull_policy: None,
+                git,
+                flux: None,
+                local: None,
+                env_from: vec![],
+                env: vec![],
+                resources: None,
+                pod_template: None,
+                pulumi_log_verbosity: 0,
+                stacks: vec![],
+            },
+        )
     }
 
     fn test_owner_ref() -> OwnerReference {
@@ -504,7 +500,15 @@ mod tests {
     #[test]
     fn test_build_statefulset_restricted() {
         let ws = make_workspace("test-ws", Some("https://github.com/example/repo"));
-        let sts = build_statefulset(&ws, "test-ws", "default", test_owner_ref(), TEST_IMAGE, vec![], None);
+        let sts = build_statefulset(
+            &ws,
+            "test-ws",
+            "default",
+            test_owner_ref(),
+            TEST_IMAGE,
+            vec![],
+            None,
+        );
 
         let spec = sts.spec.as_ref().unwrap();
         assert_eq!(spec.replicas, Some(1));
@@ -536,7 +540,15 @@ mod tests {
     fn test_build_statefulset_baseline() {
         let mut ws = make_workspace("test-ws", Some("https://github.com/example/repo"));
         ws.spec.security_profile = SecurityProfile::Baseline;
-        let sts = build_statefulset(&ws, "test-ws", "default", test_owner_ref(), TEST_IMAGE, vec![], None);
+        let sts = build_statefulset(
+            &ws,
+            "test-ws",
+            "default",
+            test_owner_ref(),
+            TEST_IMAGE,
+            vec![],
+            None,
+        );
 
         let pod_spec = sts.spec.as_ref().unwrap().template.spec.as_ref().unwrap();
         // Baseline: no security context on main container
@@ -557,19 +569,42 @@ mod tests {
     #[test]
     fn test_git_source_init_container_env_vars() {
         let ws = make_workspace("test-ws", Some("https://github.com/example/repo"));
-        let sts = build_statefulset(&ws, "test-ws", "default", test_owner_ref(), TEST_IMAGE, vec![], None);
+        let sts = build_statefulset(
+            &ws,
+            "test-ws",
+            "default",
+            test_owner_ref(),
+            TEST_IMAGE,
+            vec![],
+            None,
+        );
 
-        let init_containers = sts.spec.as_ref().unwrap()
-            .template.spec.as_ref().unwrap()
-            .init_containers.as_ref().unwrap();
+        let init_containers = sts
+            .spec
+            .as_ref()
+            .unwrap()
+            .template
+            .spec
+            .as_ref()
+            .unwrap()
+            .init_containers
+            .as_ref()
+            .unwrap();
         let fetch = &init_containers[1];
 
         // Fetch container should use env vars, not CLI args
-        let env = fetch.env.as_ref().expect("fetch container should have env vars");
-        let env_map: BTreeMap<&str, &str> = env.iter()
+        let env = fetch
+            .env
+            .as_ref()
+            .expect("fetch container should have env vars");
+        let env_map: BTreeMap<&str, &str> = env
+            .iter()
             .map(|e| (e.name.as_str(), e.value.as_deref().unwrap_or("")))
             .collect();
-        assert_eq!(env_map.get("GIT_URL"), Some(&"https://github.com/example/repo"));
+        assert_eq!(
+            env_map.get("GIT_URL"),
+            Some(&"https://github.com/example/repo")
+        );
         assert_eq!(env_map.get("GIT_REVISION"), Some(&"main"));
         assert_eq!(env_map.get("GIT_DIR"), Some(&"infra"));
 
@@ -581,11 +616,27 @@ mod tests {
     #[test]
     fn test_bootstrap_copies_from_correct_paths() {
         let ws = make_workspace("test-ws", None);
-        let sts = build_statefulset(&ws, "test-ws", "default", test_owner_ref(), TEST_IMAGE, vec![], None);
+        let sts = build_statefulset(
+            &ws,
+            "test-ws",
+            "default",
+            test_owner_ref(),
+            TEST_IMAGE,
+            vec![],
+            None,
+        );
 
-        let init_containers = sts.spec.as_ref().unwrap()
-            .template.spec.as_ref().unwrap()
-            .init_containers.as_ref().unwrap();
+        let init_containers = sts
+            .spec
+            .as_ref()
+            .unwrap()
+            .template
+            .spec
+            .as_ref()
+            .unwrap()
+            .init_containers
+            .as_ref()
+            .unwrap();
         let bootstrap = &init_containers[0];
 
         let args = bootstrap.args.as_ref().unwrap();
@@ -615,11 +666,22 @@ mod tests {
                 ..Default::default()
             },
         ];
-        let sts = build_statefulset(&ws, "test-ws", "default", test_owner_ref(), TEST_IMAGE, extra_env, None);
+        let sts = build_statefulset(
+            &ws,
+            "test-ws",
+            "default",
+            test_owner_ref(),
+            TEST_IMAGE,
+            extra_env,
+            None,
+        );
 
         let pod_spec = sts.spec.as_ref().unwrap().template.spec.as_ref().unwrap();
         let pulumi = &pod_spec.containers[0];
-        let env = pulumi.env.as_ref().expect("pulumi container should have env vars");
+        let env = pulumi
+            .env
+            .as_ref()
+            .expect("pulumi container should have env vars");
         assert_eq!(env.len(), 2);
         assert_eq!(env[0].name, "PULUMI_BACKEND_URL");
         assert_eq!(env[0].value.as_deref(), Some("file:///share/state"));
@@ -679,17 +741,20 @@ mod tests {
         use crate::api::stack::{ResourceRef, SecretSelector as StackSecretSelector};
 
         let mut env_refs_map = BTreeMap::new();
-        env_refs_map.insert("GOOGLE_CREDENTIALS".to_owned(), ResourceRef {
-            selector_type: ResourceSelectorType::Secret,
-            filesystem: None,
-            env: None,
-            secret_ref: Some(StackSecretSelector {
-                namespace: None,
-                name: "gcp-creds".to_owned(),
-                key: "creds.json".to_owned(),
-            }),
-            literal_ref: None,
-        });
+        env_refs_map.insert(
+            "GOOGLE_CREDENTIALS".to_owned(),
+            ResourceRef {
+                selector_type: ResourceSelectorType::Secret,
+                filesystem: None,
+                env: None,
+                secret_ref: Some(StackSecretSelector {
+                    namespace: None,
+                    name: "gcp-creds".to_owned(),
+                    key: "creds.json".to_owned(),
+                }),
+                literal_ref: None,
+            },
+        );
 
         let mut stack = Stack::new("test", make_stack_spec());
         stack.spec.backend = Some("file:///share/state".to_owned());
@@ -699,11 +764,23 @@ mod tests {
         let envs = build_env_vars(&stack);
         assert_eq!(envs.len(), 2); // PULUMI_BACKEND_URL + GOOGLE_CREDENTIALS
 
-        let backend_env = envs.iter().find(|e| e.name == "PULUMI_BACKEND_URL").unwrap();
+        let backend_env = envs
+            .iter()
+            .find(|e| e.name == "PULUMI_BACKEND_URL")
+            .unwrap();
         assert_eq!(backend_env.value.as_deref(), Some("file:///share/state"));
 
-        let creds_env = envs.iter().find(|e| e.name == "GOOGLE_CREDENTIALS").unwrap();
-        let secret_ref = creds_env.value_from.as_ref().unwrap().secret_key_ref.as_ref().unwrap();
+        let creds_env = envs
+            .iter()
+            .find(|e| e.name == "GOOGLE_CREDENTIALS")
+            .unwrap();
+        let secret_ref = creds_env
+            .value_from
+            .as_ref()
+            .unwrap()
+            .secret_key_ref
+            .as_ref()
+            .unwrap();
         assert_eq!(secret_ref.name.as_str(), "gcp-creds");
         assert_eq!(secret_ref.key, "creds.json");
     }

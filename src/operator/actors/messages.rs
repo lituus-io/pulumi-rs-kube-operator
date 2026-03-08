@@ -8,10 +8,10 @@ pub struct PrioritizedMessage {
 
 #[derive(PartialOrd, Ord, PartialEq, Eq, Clone, Copy, Debug)]
 pub enum Priority {
-    Deletion = 0,    // Highest
+    Deletion = 0, // Highest
     LockRecovery = 1,
     FailureRetry = 2,
-    Normal = 3,      // Lowest
+    Normal = 3, // Lowest
 }
 
 pub enum StackMessage {

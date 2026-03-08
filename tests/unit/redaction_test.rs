@@ -6,7 +6,10 @@ use pulumi_kubernetes_operator::agent::redact::redact_stderr;
 fn redact_stderr_passthrough() {
     let input = "error: resource not found\nstack trace follows\n";
     let result = redact_stderr(input);
-    assert!(matches!(result, Cow::Borrowed(_)), "expected zero-alloc fast path");
+    assert!(
+        matches!(result, Cow::Borrowed(_)),
+        "expected zero-alloc fast path"
+    );
     assert_eq!(&*result, input);
 }
 
@@ -26,7 +29,9 @@ fn redact_stderr_jwt() {
 
 #[test]
 fn redact_stderr_private_key() {
-    let result = redact_stderr("-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIBAAKC...\n-----END RSA PRIVATE KEY-----");
+    let result = redact_stderr(
+        "-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIBAAKC...\n-----END RSA PRIVATE KEY-----",
+    );
     assert!(result.contains("[REDACTED]"));
     assert!(!result.contains("BEGIN RSA"));
 }

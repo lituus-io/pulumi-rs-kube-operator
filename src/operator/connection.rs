@@ -115,7 +115,10 @@ impl ConnectionPool {
 }
 
 impl Lend for ConnectionPool {
-    type Loan<'pool> = ConnectionGuard<'pool> where Self: 'pool;
+    type Loan<'pool>
+        = ConnectionGuard<'pool>
+    where
+        Self: 'pool;
     type Error = OperatorError;
 
     fn lend<'pool>(
@@ -153,7 +156,8 @@ impl Lend for ConnectionPool {
 
             // Insert into slab
             let mut index = self.index.write();
-            let slot = self.find_free_slot()
+            let slot = self
+                .find_free_slot()
                 .or_else(|| self.evict_oldest(&mut index))
                 .ok_or(OperatorError::Transient(TransientError::ConnectionFailed))?;
 
@@ -186,7 +190,7 @@ mod tests {
     #[test]
     fn evict_idle_removes_expired() {
         let pool = ConnectionPool::new(Duration::from_secs(0)); // immediate expiry
-        // Since we can't easily insert without a real channel, just test evict doesn't panic
+                                                                // Since we can't easily insert without a real channel, just test evict doesn't panic
         pool.evict_idle();
         assert!(pool.is_empty());
     }

@@ -11,10 +11,10 @@ use crate::api::stack::{Stack, WorkspaceReclaimPolicy};
 use crate::api::update::Update;
 use crate::api::workspace::Workspace;
 use crate::core::lending::Lend;
+use crate::core::recovery::recovery_action;
 use crate::errors::OperatorError;
 use crate::operator::lock::{LockAction, LockState};
 use crate::operator::manager::Manager;
-use crate::core::recovery::recovery_action;
 
 use super::messages::{NameKey, PrioritizedMessage, Priority, ReconcileTrigger, StackMessage};
 
@@ -151,7 +151,10 @@ impl Actor {
         // This prevents watcher events from bypassing cooldown/backoff schedules.
         // Only scheduled retries (which clear the debounce) can proceed during cooldown.
         if let Some(next_at) = self.state.next_reconcile_at {
-            if Instant::now() < next_at && trigger != ReconcileTrigger::Retry && trigger != ReconcileTrigger::LockRetry {
+            if Instant::now() < next_at
+                && trigger != ReconcileTrigger::Retry
+                && trigger != ReconcileTrigger::LockRetry
+            {
                 tracing::debug!(key = %self.key, ?trigger, "reconcile debounced, waiting for scheduled retry");
                 return;
             }
@@ -162,10 +165,7 @@ impl Actor {
         self.mgr.metrics.inc_reconciles();
         tracing::debug!(key = %self.key, ?trigger, "reconcile triggered");
 
-        let stack_api: Api<Stack> = Api::namespaced(
-            self.mgr.client.clone(),
-            self.key.ns.as_str(),
-        );
+        let stack_api: Api<Stack> = Api::namespaced(self.mgr.client.clone(), self.key.ns.as_str());
 
         let stack = match stack_api.get(self.key.name.as_str()).await {
             Ok(s) => s,
@@ -188,7 +188,9 @@ impl Actor {
 
         // Sync lock timeout from Stack spec (user-configurable, default 900s)
         let lock_timeout_secs = stack.spec.lock_timeout_seconds.max(60) as u64;
-        self.state.lock_state.set_timeout(Duration::from_secs(lock_timeout_secs));
+        self.state
+            .lock_state
+            .set_timeout(Duration::from_secs(lock_timeout_secs));
 
         // Handle LockRetry: force-cancel before proceeding with normal reconciliation
         if trigger == ReconcileTrigger::LockRetry {
@@ -224,10 +226,7 @@ impl Actor {
         use crate::operator::reconcile::pipeline::ReconcileAction as RA;
         use kube::api::{Patch, PatchParams};
 
-        let stack_api: Api<Stack> = Api::namespaced(
-            self.mgr.client.clone(),
-            self.key.ns.as_str(),
-        );
+        let stack_api: Api<Stack> = Api::namespaced(self.mgr.client.clone(), self.key.ns.as_str());
         let name = self.key.name.as_str();
 
         match action {
@@ -242,7 +241,11 @@ impl Actor {
                     }
                 });
                 if let Err(e) = stack_api
-                    .patch(name, &PatchParams::apply(STACK_FINALIZER_FM), &Patch::Apply(&patch))
+                    .patch(
+                        name,
+                        &PatchParams::apply(STACK_FINALIZER_FM),
+                        &Patch::Apply(&patch),
+                    )
                     .await
                 {
                     tracing::error!(key = %self.key, error = %e, "failed to add finalizer");
@@ -278,7 +281,7 @@ impl Actor {
                 self.state.failure_count = 0;
                 let generation = stack.metadata.generation.unwrap_or(0);
                 let now = chrono::Utc::now().to_rfc3339();
-                use crate::operator::status::{stack_patch, condition};
+                use crate::operator::status::{condition, stack_patch};
                 let patch = stack_patch(serde_json::json!({
                     "currentUpdate": {
                         "generation": generation,
@@ -293,13 +296,21 @@ impl Actor {
                     ]
                 }));
                 if let Err(e) = stack_api
-                    .patch_status(name, &PatchParams::apply(FIELD_MANAGER).force(), &Patch::Apply(&patch))
+                    .patch_status(
+                        name,
+                        &PatchParams::apply(FIELD_MANAGER).force(),
+                        &Patch::Apply(&patch),
+                    )
                     .await
                 {
                     tracing::error!(key = %self.key, error = %e, "failed to update status for UpdateCreated");
                 }
             }
-            RA::UpdateSucceeded { name: update_name, permalink, outputs } => {
+            RA::UpdateSucceeded {
+                name: update_name,
+                permalink,
+                outputs,
+            } => {
                 tracing::info!(
                     key = %self.key, update = %update_name,
                     permalink = permalink.as_deref().unwrap_or(""),
@@ -318,10 +329,9 @@ impl Actor {
                 self.state.lock_state.on_success();
                 let generation = stack.metadata.generation.unwrap_or(0);
                 let now = chrono::Utc::now().to_rfc3339();
-                let outputs_value: Option<serde_json::Value> = outputs
-                    .as_ref()
-                    .and_then(|o| serde_json::from_str(o).ok());
-                use crate::operator::status::{stack_patch, condition};
+                let outputs_value: Option<serde_json::Value> =
+                    outputs.as_ref().and_then(|o| serde_json::from_str(o).ok());
+                use crate::operator::status::{condition, stack_patch};
                 let mut status = serde_json::json!({
                     "currentUpdate": null,
                     "lastUpdate": {
@@ -347,21 +357,29 @@ impl Actor {
                 }
                 let patch = stack_patch(status);
                 if let Err(e) = stack_api
-                    .patch_status(name, &PatchParams::apply(FIELD_MANAGER).force(), &Patch::Apply(&patch))
+                    .patch_status(
+                        name,
+                        &PatchParams::apply(FIELD_MANAGER).force(),
+                        &Patch::Apply(&patch),
+                    )
                     .await
                 {
                     tracing::error!(key = %self.key, error = %e, "failed to update status for UpdateSucceeded");
                 }
 
                 // Remove update finalizer — the update's job is done
-                self.remove_update_finalizer(self.key.ns.as_str(), update_name).await;
+                self.remove_update_finalizer(self.key.ns.as_str(), update_name)
+                    .await;
 
                 // Delete workspace if reclaim policy is Delete (ephemeral workspaces)
                 if stack.spec.workspace_reclaim_policy == WorkspaceReclaimPolicy::Delete {
                     self.delete_workspace(name).await;
                 }
             }
-            RA::UpdateFailed { name: update_name, message } => {
+            RA::UpdateFailed {
+                name: update_name,
+                message,
+            } => {
                 let is_lock = is_lock_error(message);
                 tracing::warn!(
                     key = %self.key, update = %update_name,
@@ -378,7 +396,10 @@ impl Actor {
                 } else {
                     self.mgr.events.record(
                         &event_ref_helper::stack_ref(stack),
-                        &crate::operator::events::StackEvent::UpdateFailed { update_name, message },
+                        &crate::operator::events::StackEvent::UpdateFailed {
+                            update_name,
+                            message,
+                        },
                         stack,
                         &self.mgr.metrics,
                     );
@@ -387,7 +408,7 @@ impl Actor {
                 let generation = stack.metadata.generation.unwrap_or(0);
                 let now = chrono::Utc::now().to_rfc3339();
                 let failures = self.state.failure_count as i64;
-                use crate::operator::status::{stack_patch, condition};
+                use crate::operator::status::{condition, stack_patch};
                 let patch = stack_patch(serde_json::json!({
                     "currentUpdate": null,
                     "lastUpdate": {
@@ -409,14 +430,19 @@ impl Actor {
                     ]
                 }));
                 if let Err(e) = stack_api
-                    .patch_status(name, &PatchParams::apply(FIELD_MANAGER).force(), &Patch::Apply(&patch))
+                    .patch_status(
+                        name,
+                        &PatchParams::apply(FIELD_MANAGER).force(),
+                        &Patch::Apply(&patch),
+                    )
                     .await
                 {
                     tracing::error!(key = %self.key, error = %e, "failed to update status for UpdateFailed");
                 }
 
                 // Remove update finalizer — the update's job is done
-                self.remove_update_finalizer(self.key.ns.as_str(), update_name).await;
+                self.remove_update_finalizer(self.key.ns.as_str(), update_name)
+                    .await;
 
                 // Handle lock conflicts: track in LockState and schedule recovery
                 if is_lock {
@@ -454,10 +480,7 @@ impl Actor {
                 } else {
                     // Non-lock failure: schedule retry after cooldown
                     // Cooldown is exponential: 10s * 3^failures, capped by spec
-                    let cooldown = crate::operator::reconcile::sync::cooldown(
-                        failures,
-                        stack,
-                    );
+                    let cooldown = crate::operator::reconcile::sync::cooldown(failures, stack);
                     tracing::info!(
                         key = %self.key,
                         cooldown_secs = cooldown.as_secs(),
@@ -481,7 +504,7 @@ impl Actor {
                 );
                 let generation = stack.metadata.generation.unwrap_or(0);
                 let now = chrono::Utc::now().to_rfc3339();
-                use crate::operator::status::{stack_patch, condition};
+                use crate::operator::status::{condition, stack_patch};
                 let patch = stack_patch(serde_json::json!({
                     "currentUpdate": {
                         "generation": generation,
@@ -494,13 +517,20 @@ impl Actor {
                     ]
                 }));
                 if let Err(e) = stack_api
-                    .patch_status(name, &PatchParams::apply(FIELD_MANAGER).force(), &Patch::Apply(&patch))
+                    .patch_status(
+                        name,
+                        &PatchParams::apply(FIELD_MANAGER).force(),
+                        &Patch::Apply(&patch),
+                    )
                     .await
                 {
                     tracing::error!(key = %self.key, error = %e, "failed to update status for DestroyStarted");
                 }
             }
-            RA::DestroyFailed { name: update_name, failures } => {
+            RA::DestroyFailed {
+                name: update_name,
+                failures,
+            } => {
                 tracing::warn!(
                     key = %self.key, update = %update_name, failures,
                     "destroy update failed, will retry"
@@ -517,7 +547,7 @@ impl Actor {
                 self.state.failure_count = (*failures).min(u32::MAX as i64) as u32;
                 let generation = stack.metadata.generation.unwrap_or(0);
                 let now = chrono::Utc::now().to_rfc3339();
-                use crate::operator::status::{stack_patch, condition};
+                use crate::operator::status::{condition, stack_patch};
                 let patch = stack_patch(serde_json::json!({
                     "currentUpdate": null,
                     "lastUpdate": {
@@ -535,7 +565,11 @@ impl Actor {
                     ]
                 }));
                 if let Err(e) = stack_api
-                    .patch_status(name, &PatchParams::apply(FIELD_MANAGER).force(), &Patch::Apply(&patch))
+                    .patch_status(
+                        name,
+                        &PatchParams::apply(FIELD_MANAGER).force(),
+                        &Patch::Apply(&patch),
+                    )
                     .await
                 {
                     tracing::error!(key = %self.key, error = %e, "failed to update status for DestroyFailed");
@@ -588,7 +622,7 @@ impl Actor {
                         project_id: project_id.clone(),
                     },
                 );
-                use crate::operator::status::{stack_patch, condition};
+                use crate::operator::status::{condition, stack_patch};
                 let patch = stack_patch(serde_json::json!({
                     "pendingDeletionSince": pending_since,
                     "lastProjectCheck": check_status,
@@ -599,7 +633,11 @@ impl Actor {
                     ]
                 }));
                 if let Err(e) = stack_api
-                    .patch_status(name, &PatchParams::apply(FIELD_MANAGER).force(), &Patch::Apply(&patch))
+                    .patch_status(
+                        name,
+                        &PatchParams::apply(FIELD_MANAGER).force(),
+                        &Patch::Apply(&patch),
+                    )
                     .await
                 {
                     tracing::error!(key = %self.key, error = %e, "failed to update status for ProjectNotFound");
@@ -619,7 +657,7 @@ impl Actor {
                 let check_status = crate::operator::reconcile::project::build_check_status(
                     &crate::operator::reconcile::project::ProjectCheckResult::Active,
                 );
-                use crate::operator::status::{stack_patch, condition};
+                use crate::operator::status::{condition, stack_patch};
                 let patch = stack_patch(serde_json::json!({
                     "pendingDeletionSince": null,
                     "lastProjectCheck": check_status,
@@ -630,7 +668,11 @@ impl Actor {
                     ]
                 }));
                 if let Err(e) = stack_api
-                    .patch_status(name, &PatchParams::apply(FIELD_MANAGER).force(), &Patch::Apply(&patch))
+                    .patch_status(
+                        name,
+                        &PatchParams::apply(FIELD_MANAGER).force(),
+                        &Patch::Apply(&patch),
+                    )
                     .await
                 {
                     tracing::error!(key = %self.key, error = %e, "failed to update status for ProjectReinstated");
@@ -661,7 +703,7 @@ impl Actor {
                     .cloned()
                     .unwrap_or_default();
 
-                use crate::operator::status::{stack_patch, condition};
+                use crate::operator::status::{condition, stack_patch};
                 let patch = stack_patch(serde_json::json!({
                     "observedGeneration": generation,
                     "conditions": [
@@ -670,7 +712,11 @@ impl Actor {
                     ]
                 }));
                 if let Err(e) = stack_api
-                    .patch_status(name, &PatchParams::apply(FIELD_MANAGER).force(), &Patch::Apply(&patch))
+                    .patch_status(
+                        name,
+                        &PatchParams::apply(FIELD_MANAGER).force(),
+                        &Patch::Apply(&patch),
+                    )
                     .await
                 {
                     tracing::error!(key = %self.key, error = %e, "failed to update status for ProjectTtlExpired");
@@ -703,10 +749,8 @@ impl Actor {
         let workspace_name = self.key.name.as_str();
 
         // Resolve workspace gRPC address
-        let workspace_addr = crate::operator::controllers::workspace::get_workspace_address(
-            workspace_name,
-            ns,
-        );
+        let workspace_addr =
+            crate::operator::controllers::workspace::get_workspace_address(workspace_name, ns);
 
         tracing::warn!(
             key = %self.key,
@@ -770,7 +814,10 @@ impl Actor {
         let ns = self.key.ns.as_str();
         let ws_api: Api<Workspace> = Api::namespaced(self.mgr.client.clone(), ns);
         // Workspace name matches the Stack name
-        match ws_api.delete(stack_name, &kube::api::DeleteParams::default()).await {
+        match ws_api
+            .delete(stack_name, &kube::api::DeleteParams::default())
+            .await
+        {
             Ok(_) => {
                 tracing::info!(key = %self.key, "workspace deleted (reclaim policy: Delete)");
             }
@@ -818,7 +865,10 @@ impl Actor {
         let ks_api: Api<DynamicObject> =
             Api::namespaced_with(self.mgr.client.clone(), ns, &api_resource);
 
-        match ks_api.delete(ks_name, &kube::api::DeleteParams::default()).await {
+        match ks_api
+            .delete(ks_name, &kube::api::DeleteParams::default())
+            .await
+        {
             Ok(_) => {
                 tracing::info!(
                     key = %self.key,
@@ -917,9 +967,9 @@ impl Actor {
         match recovery_action(error) {
             RA::RetryWithBackoff { base_ms, max_ms } => {
                 self.state.failure_count += 1;
-                let delay_ms = base_ms.saturating_mul(
-                    2u64.saturating_pow(self.state.failure_count.min(20)),
-                ).min(max_ms);
+                let delay_ms = base_ms
+                    .saturating_mul(2u64.saturating_pow(self.state.failure_count.min(20)))
+                    .min(max_ms);
                 tracing::info!(
                     key = %self.key,
                     delay_ms,
@@ -965,11 +1015,7 @@ impl Actor {
                             delay_secs = d.as_secs(),
                             "lock conflict in pipeline, scheduling retry"
                         );
-                        self.schedule_requeue(
-                            d,
-                            Priority::FailureRetry,
-                            ReconcileTrigger::Retry,
-                        );
+                        self.schedule_requeue(d, Priority::FailureRetry, ReconcileTrigger::Retry);
                     }
                     LockAction::Clear => {
                         self.state.lock_state.on_success();
@@ -984,9 +1030,9 @@ use crate::core::lock::is_lock_error;
 
 /// Helper to create an ObjectReference from a Stack for event emission.
 mod event_ref_helper {
+    use crate::api::stack::Stack;
     use k8s_openapi::api::core::v1::ObjectReference;
     use kube::ResourceExt;
-    use crate::api::stack::Stack;
 
     pub fn stack_ref(stack: &Stack) -> ObjectReference {
         ObjectReference {

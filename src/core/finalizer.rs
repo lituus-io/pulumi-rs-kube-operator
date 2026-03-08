@@ -27,8 +27,7 @@ mod tests {
 
     #[test]
     fn has_finalizer_on_program() {
-        let spec: crate::api::program::ProgramSpec =
-            serde_json::from_str(r#"{}"#).unwrap();
+        let spec: crate::api::program::ProgramSpec = serde_json::from_str(r#"{}"#).unwrap();
         let mut program = Program::new("test", spec);
         assert!(!has_finalizer(&program, PROGRAM_FINALIZER));
 

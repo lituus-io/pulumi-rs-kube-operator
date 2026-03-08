@@ -29,11 +29,9 @@ fn check_single_prerequisite(
 ) -> Result<(), OperatorError> {
     // Look up the prerequisite stack from the shared cache
     let key = kube::runtime::reflector::ObjectRef::new(&prereq.name).within(ns);
-    let stack = store
-        .get(&key)
-        .ok_or(OperatorError::Transient(
-            TransientError::PrerequisiteNotSatisfied,
-        ))?;
+    let stack = store.get(&key).ok_or(OperatorError::Transient(
+        TransientError::PrerequisiteNotSatisfied,
+    ))?;
 
     let status = stack
         .status

@@ -81,20 +81,22 @@ mod tests {
     use crate::api::stack::StackSpec;
 
     fn make_stack(has_finalizer: bool, deleting: bool, destroy: bool, preview: bool) -> Stack {
-        let mut stack = Stack::new("test", StackSpec {
-            stack: "org/test".into(),
-            destroy_on_finalize: destroy,
-            preview,
-            ..default_stack_spec()
-        });
+        let mut stack = Stack::new(
+            "test",
+            StackSpec {
+                stack: "org/test".into(),
+                destroy_on_finalize: destroy,
+                preview,
+                ..default_stack_spec()
+            },
+        );
         if has_finalizer {
             stack.metadata.finalizers = Some(vec![STACK_FINALIZER.to_owned()]);
         }
         if deleting {
-            stack.metadata.deletion_timestamp =
-                Some(k8s_openapi::apimachinery::pkg::apis::meta::v1::Time(
-                    chrono::Utc::now(),
-                ));
+            stack.metadata.deletion_timestamp = Some(
+                k8s_openapi::apimachinery::pkg::apis::meta::v1::Time(chrono::Utc::now()),
+            );
         }
         stack
     }

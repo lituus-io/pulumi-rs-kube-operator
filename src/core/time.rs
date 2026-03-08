@@ -26,10 +26,21 @@ pub fn parse_go_duration(s: &str) -> Duration {
     for c in s.bytes() {
         match c {
             b'0'..=b'9' => n = n.saturating_mul(10).saturating_add((c - b'0') as u64),
-            b'h' => { total_secs = total_secs.saturating_add(n.saturating_mul(3600)); n = 0; }
-            b'm' => { total_secs = total_secs.saturating_add(n.saturating_mul(60)); n = 0; }
-            b's' => { total_secs = total_secs.saturating_add(n); n = 0; }
-            _ => { n = 0; }
+            b'h' => {
+                total_secs = total_secs.saturating_add(n.saturating_mul(3600));
+                n = 0;
+            }
+            b'm' => {
+                total_secs = total_secs.saturating_add(n.saturating_mul(60));
+                n = 0;
+            }
+            b's' => {
+                total_secs = total_secs.saturating_add(n);
+                n = 0;
+            }
+            _ => {
+                n = 0;
+            }
         }
     }
 

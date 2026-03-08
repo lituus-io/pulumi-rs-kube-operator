@@ -1,7 +1,7 @@
 use std::time::Duration;
 
-use pulumi_kubernetes_operator::core::time::parse_go_duration;
 use pulumi_kubernetes_operator::core::lock::is_lock_error;
+use pulumi_kubernetes_operator::core::time::parse_go_duration;
 
 #[test]
 fn parse_go_duration_overflow() {

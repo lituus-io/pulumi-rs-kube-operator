@@ -30,7 +30,8 @@ impl Dispatcher {
     /// Route an event to the correct actor, creating one if needed.
     /// No dynamic dispatch -- the actor task is a concrete async fn.
     pub async fn dispatch(&self, key: NameKey, msg: StackMessage) {
-        self.dispatch_with_priority(key, Priority::Normal, msg).await;
+        self.dispatch_with_priority(key, Priority::Normal, msg)
+            .await;
     }
 
     pub async fn dispatch_with_priority(

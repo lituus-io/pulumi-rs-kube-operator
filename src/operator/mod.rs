@@ -1,8 +1,8 @@
 pub mod actors;
 pub mod connection;
 pub mod controllers;
-pub mod finalizers;
 pub mod events;
+pub mod finalizers;
 pub mod health;
 pub mod lock;
 pub mod manager;
@@ -11,7 +11,6 @@ pub mod reconcile;
 pub mod shutdown;
 pub mod status;
 pub mod webhook;
-
 
 /// Entry point for the operator control plane.
 pub async fn run(

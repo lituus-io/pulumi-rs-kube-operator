@@ -25,10 +25,7 @@ pub struct WorkspaceSpec {
     )]
     pub service_account_name: Option<String>,
 
-    #[serde(
-        default = "default_security_profile",
-        rename = "securityProfile"
-    )]
+    #[serde(default = "default_security_profile", rename = "securityProfile")]
     pub security_profile: SecurityProfile,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -212,11 +209,7 @@ pub struct ConfigItem {
     #[schemars(schema_with = "crate::api::schema::json_value_opt")]
     pub value: Option<serde_json::Value>,
 
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        rename = "valueFrom"
-    )]
+    #[serde(default, skip_serializing_if = "Option::is_none", rename = "valueFrom")]
     pub value_from: Option<ConfigValueFrom>,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]

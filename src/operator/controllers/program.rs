@@ -15,9 +15,7 @@ pub async fn reconcile_program(
     mgr: &Manager,
     program: &Program,
 ) -> Result<ProgramReconcileAction, OperatorError> {
-    let ns = program
-        .namespace()
-        .unwrap_or_else(|| "default".to_owned());
+    let ns = program.namespace().unwrap_or_else(|| "default".to_owned());
 
     // Use the shared store for efficient lookup -- count only, no cloning
     let referencing_count = count_referencing_stacks(mgr, &ns, &program.name_any());
@@ -26,9 +24,9 @@ pub async fn reconcile_program(
         ProgramFinalizerAction::Add => Ok(ProgramReconcileAction::AddFinalizer),
         ProgramFinalizerAction::None => Ok(ProgramReconcileAction::EnsureServing),
         ProgramFinalizerAction::Remove => Ok(ProgramReconcileAction::RemoveFinalizer),
-        ProgramFinalizerAction::Block => Ok(ProgramReconcileAction::BlockDeletion {
-            referencing_count,
-        }),
+        ProgramFinalizerAction::Block => {
+            Ok(ProgramReconcileAction::BlockDeletion { referencing_count })
+        }
     }
 }
 
@@ -105,59 +103,62 @@ fn serialize_program_yaml(spec: &ProgramSpec) -> Result<String, OperatorError> {
     );
 
     if let Some(ref config) = spec.configuration {
-        let config_val = serde_yaml::to_value(config)
-            .map_err(|_| OperatorError::Permanent(crate::errors::PermanentError::SpecInvalid {
+        let config_val = serde_yaml::to_value(config).map_err(|_| {
+            OperatorError::Permanent(crate::errors::PermanentError::SpecInvalid {
                 field: "configuration",
-            }))?;
+            })
+        })?;
         doc.insert(Value::String("config".to_owned()), config_val);
     }
 
     if let Some(ref resources) = spec.resources {
-        let res_val = serde_yaml::to_value(resources)
-            .map_err(|_| OperatorError::Permanent(crate::errors::PermanentError::SpecInvalid {
+        let res_val = serde_yaml::to_value(resources).map_err(|_| {
+            OperatorError::Permanent(crate::errors::PermanentError::SpecInvalid {
                 field: "resources",
-            }))?;
+            })
+        })?;
         doc.insert(Value::String("resources".to_owned()), res_val);
     }
 
     if let Some(ref variables) = spec.variables {
-        let var_val = serde_yaml::to_value(variables)
-            .map_err(|_| OperatorError::Permanent(crate::errors::PermanentError::SpecInvalid {
+        let var_val = serde_yaml::to_value(variables).map_err(|_| {
+            OperatorError::Permanent(crate::errors::PermanentError::SpecInvalid {
                 field: "variables",
-            }))?;
+            })
+        })?;
         doc.insert(Value::String("variables".to_owned()), var_val);
     }
 
     if let Some(ref outputs) = spec.outputs {
-        let out_val = serde_yaml::to_value(outputs)
-            .map_err(|_| OperatorError::Permanent(crate::errors::PermanentError::SpecInvalid {
+        let out_val = serde_yaml::to_value(outputs).map_err(|_| {
+            OperatorError::Permanent(crate::errors::PermanentError::SpecInvalid {
                 field: "outputs",
-            }))?;
+            })
+        })?;
         doc.insert(Value::String("outputs".to_owned()), out_val);
     }
 
     // Emit packages as a top-level key, matching the official Go operator behavior.
     // Pulumi uses this to resolve parameterized packages and VCS-based components.
     if let Some(ref packages) = spec.packages {
-        let pkg_val = serde_yaml::to_value(packages)
-            .map_err(|_| OperatorError::Permanent(crate::errors::PermanentError::SpecInvalid {
+        let pkg_val = serde_yaml::to_value(packages).map_err(|_| {
+            OperatorError::Permanent(crate::errors::PermanentError::SpecInvalid {
                 field: "packages",
-            }))?;
+            })
+        })?;
         doc.insert(Value::String("packages".to_owned()), pkg_val);
     }
 
-    serde_yaml::to_string(&Value::Mapping(doc))
-        .map_err(|_| OperatorError::Permanent(crate::errors::PermanentError::SpecInvalid {
-            field: "program",
-        }))
+    serde_yaml::to_string(&Value::Mapping(doc)).map_err(|_| {
+        OperatorError::Permanent(crate::errors::PermanentError::SpecInvalid { field: "program" })
+    })
 }
 
 /// Create a tar.gz archive containing a single file.
 fn create_tar_gz(filename: &str, content: &[u8]) -> Result<Vec<u8>, OperatorError> {
     let mut gz_buf = Vec::new();
     {
-        let gz_encoder =
-            flate2::write::GzEncoder::new(&mut gz_buf, flate2::Compression::default());
+        let gz_encoder = flate2::write::GzEncoder::new(&mut gz_buf, flate2::Compression::default());
         let mut tar_builder = tar::Builder::new(gz_encoder);
 
         let mut header = tar::Header::new_gnu();
@@ -167,19 +168,25 @@ fn create_tar_gz(filename: &str, content: &[u8]) -> Result<Vec<u8>, OperatorErro
 
         tar_builder
             .append_data(&mut header, filename, content)
-            .map_err(|_| OperatorError::Permanent(crate::errors::PermanentError::SpecInvalid {
-                field: "program",
-            }))?;
+            .map_err(|_| {
+                OperatorError::Permanent(crate::errors::PermanentError::SpecInvalid {
+                    field: "program",
+                })
+            })?;
 
         tar_builder
             .into_inner()
-            .map_err(|_| OperatorError::Permanent(crate::errors::PermanentError::SpecInvalid {
-                field: "program",
-            }))?
+            .map_err(|_| {
+                OperatorError::Permanent(crate::errors::PermanentError::SpecInvalid {
+                    field: "program",
+                })
+            })?
             .finish()
-            .map_err(|_| OperatorError::Permanent(crate::errors::PermanentError::SpecInvalid {
-                field: "program",
-            }))?;
+            .map_err(|_| {
+                OperatorError::Permanent(crate::errors::PermanentError::SpecInvalid {
+                    field: "program",
+                })
+            })?;
     }
 
     Ok(gz_buf)
@@ -280,19 +287,22 @@ mod tests {
             configuration: None,
             resources: Some({
                 let mut map = BTreeMap::new();
-                map.insert("bucket".to_owned(), crate::api::program::Resource {
-                    resource_type: "gcp:storage:Bucket".to_owned(),
-                    properties: Some({
-                        let mut props = BTreeMap::new();
-                        props.insert(
-                            "location".to_owned(),
-                            serde_json::Value::String("US".to_owned()),
-                        );
-                        props
-                    }),
-                    options: None,
-                    get: None,
-                });
+                map.insert(
+                    "bucket".to_owned(),
+                    crate::api::program::Resource {
+                        resource_type: "gcp:storage:Bucket".to_owned(),
+                        properties: Some({
+                            let mut props = BTreeMap::new();
+                            props.insert(
+                                "location".to_owned(),
+                                serde_json::Value::String("US".to_owned()),
+                            );
+                            props
+                        }),
+                        options: None,
+                        get: None,
+                    },
+                );
                 map
             }),
             variables: None,
@@ -315,8 +325,8 @@ mod tests {
     #[test]
     fn test_program_artifact_generation() {
         let spec = make_program_spec();
-        let (artifact, data) = build_artifact(&spec, "test-ns", "my-prog", 1, "localhost:8080")
-            .unwrap();
+        let (artifact, data) =
+            build_artifact(&spec, "test-ns", "my-prog", 1, "localhost:8080").unwrap();
 
         assert!(!data.is_empty());
         assert_eq!(artifact.revision, "1");
@@ -338,8 +348,8 @@ mod tests {
     #[test]
     fn test_program_artifact_digest() {
         let spec = make_program_spec();
-        let (artifact, data) = build_artifact(&spec, "test-ns", "my-prog", 1, "localhost:8080")
-            .unwrap();
+        let (artifact, data) =
+            build_artifact(&spec, "test-ns", "my-prog", 1, "localhost:8080").unwrap();
 
         // Verify digest matches
         let mut hasher = Sha256::new();
@@ -351,8 +361,8 @@ mod tests {
     #[test]
     fn test_program_artifact_url() {
         let spec = make_program_spec();
-        let (artifact, _) = build_artifact(&spec, "test-ns", "my-prog", 3, "10.0.0.1:8080")
-            .unwrap();
+        let (artifact, _) =
+            build_artifact(&spec, "test-ns", "my-prog", 3, "10.0.0.1:8080").unwrap();
 
         assert_eq!(
             artifact.url,

@@ -15,11 +15,14 @@ fn first_conflict_returns_retry_with_30s() {
         LockAction::RetryAfter(d) => {
             assert_eq!(d, Duration::from_millis(30_000));
         }
-        other => panic!("expected RetryAfter, got {:?}", match other {
-            LockAction::ForceUnlock => "ForceUnlock",
-            LockAction::Clear => "Clear",
-            _ => "RetryAfter",
-        }),
+        other => panic!(
+            "expected RetryAfter, got {:?}",
+            match other {
+                LockAction::ForceUnlock => "ForceUnlock",
+                LockAction::Clear => "Clear",
+                _ => "RetryAfter",
+            }
+        ),
     }
 }
 
@@ -68,7 +71,12 @@ fn backoff_capped_at_timeout() {
     for _ in 0..20 {
         match state.on_conflict() {
             LockAction::RetryAfter(d) => {
-                assert!(d <= timeout, "backoff {} exceeded timeout {}", d.as_millis(), timeout.as_millis());
+                assert!(
+                    d <= timeout,
+                    "backoff {} exceeded timeout {}",
+                    d.as_millis(),
+                    timeout.as_millis()
+                );
             }
             LockAction::ForceUnlock => break, // also valid
             _ => {}

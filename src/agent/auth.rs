@@ -40,13 +40,7 @@ pub async fn authenticate(
     };
 
     // Step 2: SubjectAccessReview
-    let authorized = check_access(
-        client,
-        &username,
-        workspace_namespace,
-        workspace_name,
-    )
-    .await;
+    let authorized = check_access(client, &username, workspace_namespace, workspace_name).await;
 
     if authorized {
         AuthDecision::Allow {
@@ -77,7 +71,9 @@ async fn create_token_review(
     };
 
     let reviews: Api<TokenReview> = Api::all(client.clone());
-    reviews.create(&kube::api::PostParams::default(), &review).await
+    reviews
+        .create(&kube::api::PostParams::default(), &review)
+        .await
 }
 
 fn extract_identity(
@@ -101,7 +97,7 @@ async fn check_access(
     workspace_name: &str,
 ) -> bool {
     use k8s_openapi::api::authorization::v1::{
-        SubjectAccessReview, SubjectAccessReviewSpec, ResourceAttributes,
+        ResourceAttributes, SubjectAccessReview, SubjectAccessReviewSpec,
     };
     use kube::Api;
 
@@ -123,7 +119,10 @@ async fn check_access(
     };
 
     let reviews: Api<SubjectAccessReview> = Api::all(client.clone());
-    match reviews.create(&kube::api::PostParams::default(), &review).await {
+    match reviews
+        .create(&kube::api::PostParams::default(), &review)
+        .await
+    {
         Ok(result) => result.status.is_some_and(|s| s.allowed),
         Err(_) => false,
     }
@@ -132,9 +131,7 @@ async fn check_access(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use k8s_openapi::api::authentication::v1::{
-        TokenReview, TokenReviewStatus, UserInfo,
-    };
+    use k8s_openapi::api::authentication::v1::{TokenReview, TokenReviewStatus, UserInfo};
 
     fn review_with_status(status: Option<TokenReviewStatus>) -> TokenReview {
         TokenReview {

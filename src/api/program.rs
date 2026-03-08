@@ -67,7 +67,11 @@ pub struct Program {
 /// TypeMeta fields (apiVersion + kind), flattened into Program.
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct ProgramTypeMeta {
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "apiVersion")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "apiVersion"
+    )]
     pub api_version: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub kind: Option<String>,
@@ -192,7 +196,9 @@ impl kube::CustomResourceExt for Program {
         &["prog"]
     }
 
-    fn crd() -> k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::CustomResourceDefinition {
+    fn crd(
+    ) -> k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::CustomResourceDefinition
+    {
         use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::*;
 
         let columns: Vec<CustomResourceColumnDefinition> = serde_json::from_str(
@@ -329,11 +335,7 @@ pub struct ResourceOptions {
     #[serde(default, rename = "deleteBeforeReplace")]
     pub delete_before_replace: bool,
 
-    #[serde(
-        default,
-        skip_serializing_if = "Vec::is_empty",
-        rename = "dependsOn"
-    )]
+    #[serde(default, skip_serializing_if = "Vec::is_empty", rename = "dependsOn")]
     #[schemars(schema_with = "crate::api::schema::json_value_vec")]
     pub depends_on: Vec<serde_json::Value>,
 

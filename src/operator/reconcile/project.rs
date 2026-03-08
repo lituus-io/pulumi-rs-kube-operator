@@ -20,18 +20,18 @@ pub enum ProjectCheckResult {
 /// Check whether the cloud project referenced by this Stack still exists.
 /// Reads the project ID from the Program's variables via the reflector store (zero API calls).
 /// Then checks GCP Cloud Resource Manager v3 API.
-pub async fn check_project(
-    mgr: &Manager,
-    ns: &str,
-    stack: &Stack,
-) -> ProjectCheckResult {
+pub async fn check_project(mgr: &Manager, ns: &str, stack: &Stack) -> ProjectCheckResult {
     let verification = match &stack.spec.project_verification {
         Some(v) => v,
         None => return ProjectCheckResult::NotConfigured,
     };
 
     // Rate-limit: don't recheck more often than every 5 minutes
-    if let Some(status) = stack.status.as_ref().and_then(|s| s.last_project_check.as_ref()) {
+    if let Some(status) = stack
+        .status
+        .as_ref()
+        .and_then(|s| s.last_project_check.as_ref())
+    {
         if elapsed_since(Some(status.checked_at.as_str())) < Duration::from_secs(300) {
             // Return the cached result
             return match status.result.as_str() {
@@ -76,8 +76,7 @@ fn extract_project_id(
     variable_name: &str,
 ) -> Option<String> {
     let program_ref = stack.spec.program_ref.as_ref()?;
-    let prog_key =
-        kube::runtime::reflector::ObjectRef::new(&program_ref.name).within(ns);
+    let prog_key = kube::runtime::reflector::ObjectRef::new(&program_ref.name).within(ns);
     let program = mgr.stores.programs.get(&prog_key)?;
 
     program
@@ -197,10 +196,7 @@ async fn get_gcp_access_token() -> Result<String, String> {
 }
 
 /// Check if the grace period has expired.
-pub fn is_grace_period_expired(
-    pending_since: &str,
-    grace_period_days: i64,
-) -> bool {
+pub fn is_grace_period_expired(pending_since: &str, grace_period_days: i64) -> bool {
     let grace = Duration::from_secs((grace_period_days.max(0) as u64) * 86400);
     elapsed_since(Some(pending_since)) >= grace
 }

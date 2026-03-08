@@ -5,17 +5,16 @@ use tokio::process::Command;
 /// Initialize a workspace directory.
 /// Called as an init container before the agent starts.
 /// Matches the Go agent's `init` command behavior.
-pub async fn initialize_workspace(
-    workspace_dir: &str,
-    source_dir: &str,
-) -> Result<(), InitError> {
+pub async fn initialize_workspace(workspace_dir: &str, source_dir: &str) -> Result<(), InitError> {
     let path = Path::new(workspace_dir);
 
     // Ensure workspace directory exists
     if !path.exists() {
-        tokio::fs::create_dir_all(path).await.map_err(|e| InitError::Io {
-            detail: format!("failed to create workspace dir: {}", e),
-        })?;
+        tokio::fs::create_dir_all(path)
+            .await
+            .map_err(|e| InitError::Io {
+                detail: format!("failed to create workspace dir: {}", e),
+            })?;
         tracing::info!(dir = %workspace_dir, "created workspace directory");
     }
 
@@ -191,11 +190,9 @@ async fn fetch_and_extract(target_dir: &str, url: &str, label: &str) -> Result<(
 
     let decoder = flate2::read::GzDecoder::new(&bytes[..]);
     let mut archive = tar::Archive::new(decoder);
-    archive
-        .unpack(target_dir)
-        .map_err(|e| InitError::Fetch {
-            detail: format!("failed to extract {}: {}", label, e),
-        })?;
+    archive.unpack(target_dir).map_err(|e| InitError::Fetch {
+        detail: format!("failed to extract {}: {}", label, e),
+    })?;
 
     tracing::info!(target_dir, label, "archive extracted");
     Ok(())
@@ -250,7 +247,10 @@ async fn symlink_subdir(
     tokio::fs::symlink(&source, workspace_dir)
         .await
         .map_err(|e| InitError::Io {
-            detail: format!("failed to create symlink {} → {}: {}", workspace_dir, source, e),
+            detail: format!(
+                "failed to create symlink {} → {}: {}",
+                workspace_dir, source, e
+            ),
         })?;
 
     tracing::debug!(source, workspace_dir, "symlinked source to workspace");
@@ -309,11 +309,7 @@ mod tests {
         clear_source_env();
         std::env::set_var("GIT_URL", "https://github.com/test/repo");
         match determine_source_from_env() {
-            InitSource::Git {
-                url,
-                revision,
-                dir,
-            } => {
+            InitSource::Git { url, revision, dir } => {
                 assert_eq!(url, "https://github.com/test/repo");
                 assert!(revision.is_none());
                 assert!(dir.is_none());
@@ -345,7 +341,10 @@ mod tests {
     #[serial]
     fn determine_source_program() {
         clear_source_env();
-        std::env::set_var("PROGRAM_URL", "http://operator:8080/programs/my-prog.tar.gz");
+        std::env::set_var(
+            "PROGRAM_URL",
+            "http://operator:8080/programs/my-prog.tar.gz",
+        );
         match determine_source_from_env() {
             InitSource::Program { url } => {
                 assert_eq!(url, "http://operator:8080/programs/my-prog.tar.gz");

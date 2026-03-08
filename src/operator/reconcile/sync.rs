@@ -10,11 +10,7 @@ use crate::operator::actors::actor::ActorState;
 /// Pure function: determines if stack is synced.
 /// Zero allocation -- all comparisons are on borrowed strings.
 pub fn is_synced(stack: &Stack, current_commit: &str, _actor_state: &mut ActorState) -> bool {
-    let status = match stack
-        .status
-        .as_ref()
-        .and_then(|s| s.last_update.as_ref())
-    {
+    let status = match stack.status.as_ref().and_then(|s| s.last_update.as_ref()) {
         None => return false, // Initial update needed
         Some(s) => s,
     };

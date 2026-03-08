@@ -45,7 +45,10 @@ fn stack_spec_with_notifications_deserializes() {
     assert_eq!(spec.notifications.len(), 2);
     assert_eq!(spec.notifications[0].url, "https://hook1.example.com");
     assert!(spec.notifications[0].events.is_empty());
-    assert_eq!(spec.notifications[1].events[0], NotificationEventFilter::DestroySucceeded);
+    assert_eq!(
+        spec.notifications[1].events[0],
+        NotificationEventFilter::DestroySucceeded
+    );
 }
 
 #[test]
@@ -66,9 +69,15 @@ fn webhook_auth_secret_deserializes() {
 #[test]
 fn notification_event_filter_all_variants_serializable() {
     let variants = vec![
-        (NotificationEventFilter::UpdateSucceeded, "\"UpdateSucceeded\""),
+        (
+            NotificationEventFilter::UpdateSucceeded,
+            "\"UpdateSucceeded\"",
+        ),
         (NotificationEventFilter::UpdateFailed, "\"UpdateFailed\""),
-        (NotificationEventFilter::DestroySucceeded, "\"DestroySucceeded\""),
+        (
+            NotificationEventFilter::DestroySucceeded,
+            "\"DestroySucceeded\"",
+        ),
         (NotificationEventFilter::DestroyFailed, "\"DestroyFailed\""),
         (NotificationEventFilter::LockConflict, "\"LockConflict\""),
         (NotificationEventFilter::Stalled, "\"Stalled\""),

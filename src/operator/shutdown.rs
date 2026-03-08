@@ -14,8 +14,8 @@ pub fn shutdown_signal() -> watch::Receiver<bool> {
         #[cfg(unix)]
         {
             use tokio::signal::unix::{signal, SignalKind};
-            let mut sigterm = signal(SignalKind::terminate())
-                .expect("failed to register SIGTERM handler");
+            let mut sigterm =
+                signal(SignalKind::terminate()).expect("failed to register SIGTERM handler");
 
             tokio::select! {
                 _ = ctrl_c => {

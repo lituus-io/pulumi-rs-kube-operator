@@ -38,7 +38,13 @@ pub fn create_stores() -> (
         programs: program_store,
     };
 
-    (stores, stack_writer, ws_writer, update_writer, program_writer)
+    (
+        stores,
+        stack_writer,
+        ws_writer,
+        update_writer,
+        program_writer,
+    )
 }
 
 /// Run all controllers concurrently.
@@ -54,11 +60,8 @@ pub async fn run_all(
 
     // Start program file server in background
     tokio::spawn(async move {
-        if let Err(e) = program::serve_file_server(
-            &mgr.program_file_server,
-            program::FILE_SERVER_PORT,
-        )
-        .await
+        if let Err(e) =
+            program::serve_file_server(&mgr.program_file_server, program::FILE_SERVER_PORT).await
         {
             tracing::error!(error = %e, "program file server exited with error");
         }
@@ -155,11 +158,7 @@ async fn run_workspace_watcher(
         match event {
             Ok(watcher::Event::Apply(ws) | watcher::Event::InitApply(ws)) => {
                 if let Some(ns) = ws.namespace() {
-                    if let Some(owner) = ws
-                        .owner_references()
-                        .iter()
-                        .find(|o| o.kind == "Stack")
-                    {
+                    if let Some(owner) = ws.owner_references().iter().find(|o| o.kind == "Stack") {
                         let key = NameKey::new(&ns, &owner.name);
                         dispatcher
                             .dispatch(
@@ -263,10 +262,8 @@ async fn run_update_watcher(
                     });
                 } else {
                     // Update already has status — notify Stack actor
-                    if let Some(owner) = update
-                        .owner_references()
-                        .iter()
-                        .find(|o| o.kind == "Stack")
+                    if let Some(owner) =
+                        update.owner_references().iter().find(|o| o.kind == "Stack")
                     {
                         let key = NameKey::new(&ns, &owner.name);
                         dispatcher
@@ -338,9 +335,8 @@ async fn execute_update(
     tracing::info!(update = %update_name, "update execution started");
 
     // Step 2: Determine workspace address (use consistent helper)
-    let workspace_addr = crate::operator::controllers::workspace::get_workspace_address(
-        workspace_name, ns,
-    );
+    let workspace_addr =
+        crate::operator::controllers::workspace::get_workspace_address(workspace_name, ns);
 
     // Step 3: Read Stack config and operation timeout (single fetch)
     let (stack_config, op_timeout) = {
@@ -351,12 +347,13 @@ async fn execute_update(
             .map(|o| o.name.clone());
         match stack_name {
             Some(ref name) => {
-                let stacks: Api<crate::api::stack::Stack> =
-                    Api::namespaced(mgr.client.clone(), ns);
+                let stacks: Api<crate::api::stack::Stack> = Api::namespaced(mgr.client.clone(), ns);
                 match stacks.get(name).await {
                     Ok(s) => (
                         s.spec.config.clone(),
-                        std::time::Duration::from_secs(s.spec.operation_timeout_seconds.max(60) as u64),
+                        std::time::Duration::from_secs(
+                            s.spec.operation_timeout_seconds.max(60) as u64
+                        ),
                     ),
                     Err(e) => {
                         tracing::warn!(error = %e, "failed to read Stack; proceeding with defaults");
@@ -373,7 +370,9 @@ async fn execute_update(
     let result = match tokio::time::timeout(
         op_timeout,
         stream_update(mgr, ns, &workspace_addr, update, stack_config.as_ref()),
-    ).await {
+    )
+    .await
+    {
         Ok(r) => r,
         Err(_) => {
             tracing::error!(
@@ -443,21 +442,15 @@ async fn execute_update(
                 );
 
                 // Create output Secret for Up operations
-                if matches!(
-                    update.spec.update_type.as_ref(),
-                    Some(UpdateType::Up)
-                ) && !stream_result.outputs.is_empty()
+                if matches!(update.spec.update_type.as_ref(), Some(UpdateType::Up))
+                    && !stream_result.outputs.is_empty()
                 {
                     let owner_ref =
                         k8s_openapi::apimachinery::pkg::apis::meta::v1::OwnerReference {
                             api_version: "auto.pulumi.com/v1alpha1".to_owned(),
                             kind: "Update".to_owned(),
                             name: update_name.to_owned(),
-                            uid: update
-                                .metadata
-                                .uid
-                                .clone()
-                                .unwrap_or_default(),
+                            uid: update.metadata.uid.clone().unwrap_or_default(),
                             controller: Some(true),
                             block_owner_deletion: Some(false),
                         };
@@ -487,12 +480,7 @@ async fn execute_update(
                     let map: std::collections::BTreeMap<String, String> = stream_result
                         .outputs
                         .iter()
-                        .map(|(k, v)| {
-                            (
-                                k.clone(),
-                                String::from_utf8_lossy(&v.value).into_owned(),
-                            )
-                        })
+                        .map(|(k, v)| (k.clone(), String::from_utf8_lossy(&v.value).into_owned()))
                         .collect();
                     serde_json::to_string(&map).ok()
                 } else {
@@ -584,11 +572,7 @@ async fn execute_update(
     }
 
     // Step 4: Notify Stack actor about the completed update
-    if let Some(owner) = update
-        .owner_references()
-        .iter()
-        .find(|o| o.kind == "Stack")
-    {
+    if let Some(owner) = update.owner_references().iter().find(|o| o.kind == "Stack") {
         let key = NameKey::new(ns, &owner.name);
         dispatcher
             .dispatch(
@@ -640,7 +624,11 @@ async fn run_program_watcher(
                         });
                         let api: Api<Program> = Api::namespaced(mgr.client.clone(), &ns);
                         if let Err(e) = api
-                            .patch(&name, &PatchParams::apply(FIELD_MANAGER), &Patch::Apply(&patch))
+                            .patch(
+                                &name,
+                                &PatchParams::apply(FIELD_MANAGER),
+                                &Patch::Apply(&patch),
+                            )
                             .await
                         {
                             tracing::error!(program = %name, error = %e, "failed to add program finalizer");
@@ -664,8 +652,7 @@ async fn run_program_watcher(
                         let generation = prog.metadata.generation.unwrap_or(0);
                         match build_artifact(&prog.spec, &ns, &name, generation, &server_addr) {
                             Ok((artifact, data)) => {
-                                mgr.program_file_server
-                                    .store_artifact(&artifact.path, data);
+                                mgr.program_file_server.store_artifact(&artifact.path, data);
                                 tracing::info!(
                                     program = %name,
                                     url = %artifact.url,
@@ -673,8 +660,7 @@ async fn run_program_watcher(
                                 );
 
                                 // Update Program status with artifact
-                                let api: Api<Program> =
-                                    Api::namespaced(mgr.client.clone(), &ns);
+                                let api: Api<Program> = Api::namespaced(mgr.client.clone(), &ns);
                                 let status_patch = serde_json::json!({
                                     "apiVersion": "pulumi.com/v1",
                                     "kind": "Program",
@@ -777,14 +763,13 @@ fn file_server_address(_mgr: &Manager, port: u16) -> String {
     // otherwise fall back to a reasonable default.
     let svc_name =
         std::env::var("OPERATOR_SERVICE_NAME").unwrap_or_else(|_| "pulumi-operator".to_owned());
-    let svc_ns =
-        std::env::var("OPERATOR_NAMESPACE").unwrap_or_else(|_| {
-            // Try to read from the downward API
-            std::fs::read_to_string("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
-                .unwrap_or_else(|_| "pulumi-system".to_owned())
-                .trim()
-                .to_owned()
-        });
+    let svc_ns = std::env::var("OPERATOR_NAMESPACE").unwrap_or_else(|_| {
+        // Try to read from the downward API
+        std::fs::read_to_string("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
+            .unwrap_or_else(|_| "pulumi-system".to_owned())
+            .trim()
+            .to_owned()
+    });
     format!("{}.{}.svc.cluster.local:{}", svc_name, svc_ns, port)
 }
 
