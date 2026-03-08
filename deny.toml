@@ -1,15 +1,22 @@
+[graph]
+targets = [
+    "x86_64-unknown-linux-musl",
+    "aarch64-unknown-linux-musl",
+    "x86_64-apple-darwin",
+    "aarch64-apple-darwin",
+]
+all-features = true
+
 [advisories]
-vulnerability = "deny"
-unmaintained = "warn"
-yanked = "deny"
-notice = "warn"
+unmaintained = "workspace"
+ignore = []
 
 [licenses]
-unlicensed = "deny"
+confidence-threshold = 0.8
 allow = [
     "MIT",
     "Apache-2.0",
-    "AGPL-3.0-or-later",
+    "Apache-2.0 WITH LLVM-exception",
     "BSD-2-Clause",
     "BSD-3-Clause",
     "ISC",
@@ -17,14 +24,17 @@ allow = [
     "Unicode-3.0",
     "Zlib",
     "OpenSSL",
+    "CDLA-Permissive-2.0",
 ]
-copyleft = "warn"
+exceptions = [
+    { allow = ["AGPL-3.0-or-later"], crate = "pulumi-kubernetes-operator" },
+]
 
 [bans]
 multiple-versions = "warn"
 wildcards = "deny"
 deny = [
-    { name = "openssl-sys", wrappers = [] },  # Ensure pure-Rust TLS
+    { crate = "openssl-sys", use-instead = "rustls" },
 ]
 
 [sources]
