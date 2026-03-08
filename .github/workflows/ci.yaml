@@ -122,7 +122,7 @@ jobs:
           version: "25.x"
       - name: Run each fuzzer for 30 seconds
         run: |
-          for target in fuzz_stack_deser fuzz_go_duration fuzz_hmac_validation fuzz_redact_stderr fuzz_lock_detection; do
+          for target in fuzz_stack_deser fuzz_update_deser fuzz_program_deser fuzz_workspace_deser fuzz_go_duration fuzz_hmac_validation fuzz_redact_stderr fuzz_lock_detection; do
             cargo +nightly fuzz run $target -- -max_total_time=30 || exit 1
           done
 

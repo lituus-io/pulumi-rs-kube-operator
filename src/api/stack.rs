@@ -237,6 +237,10 @@ pub struct StackSpec {
         rename = "projectVerification"
     )]
     pub project_verification: Option<ProjectVerification>,
+
+    /// Notification webhooks for push-based alerting (Slack, PagerDuty, etc.).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub notifications: Vec<NotificationWebhook>,
 }
 
 fn default_lock_timeout() -> i64 {
@@ -584,4 +588,31 @@ pub struct ProjectCheckStatus {
     /// Error message if result is "error".
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub message: Option<String>,
+}
+
+// --- Notification Webhooks ---
+
+#[derive(Deserialize, Serialize, Clone, Debug, JsonSchema)]
+pub struct NotificationWebhook {
+    pub url: String,
+    #[serde(default, skip_serializing_if = "Option::is_none", rename = "authSecret")]
+    pub auth_secret: Option<WebhookAuthSecret>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub events: Vec<NotificationEventFilter>,
+}
+
+#[derive(Deserialize, Serialize, Clone, Debug, JsonSchema)]
+pub struct WebhookAuthSecret {
+    pub name: String,
+    pub key: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
+pub enum NotificationEventFilter {
+    UpdateSucceeded,
+    UpdateFailed,
+    DestroySucceeded,
+    DestroyFailed,
+    LockConflict,
+    Stalled,
 }

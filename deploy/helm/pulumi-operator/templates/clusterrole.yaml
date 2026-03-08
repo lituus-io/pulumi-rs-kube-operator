@@ -7,7 +7,7 @@ metadata:
     {{- include "pulumi-operator.labels" . | nindent 4 }}
 rules:
   # Core resources
-  - apiGroups: [""]
+  - apiGroups: ["", "events.k8s.io"]
     resources: [events]
     verbs: [create, patch]
   - apiGroups: [""]

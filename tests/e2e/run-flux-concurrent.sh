@@ -84,7 +84,7 @@ show_progress() {
     echo -e "  Stacks Ready:    ${GREEN}${ready}${NC}/${total}"
 
     # Workspaces (pods running)
-    local ws_pods=$(kubectl $KFN -n "$NAMESPACE" get pods --no-headers 2>/dev/null | grep -c "Running" || echo 0)
+    local ws_pods=$(kubectl $KFN -n "$NAMESPACE" get pods --no-headers 2>/dev/null | { grep -c "Running" || true; })
     echo -e "  Workspace Pods:  ${CYAN}${ws_pods}${NC}"
 
     # Updates
@@ -318,7 +318,7 @@ wait_workspaces_zero() {
     local elapsed=0
 
     while [[ $elapsed -lt $timeout ]]; do
-        local ws_count=$(kubectl $KFN -n "$NAMESPACE" get pods --no-headers 2>/dev/null | grep -c "workspace" || echo 0)
+        local ws_count=$(kubectl $KFN -n "$NAMESPACE" get pods --no-headers 2>/dev/null | { grep -c "workspace" || true; })
         if [[ "$ws_count" -eq 0 ]]; then
             return 0
         fi
@@ -330,7 +330,7 @@ wait_workspaces_zero() {
 }
 
 count_gcs_buckets() {
-    GOOGLE_APPLICATION_CREDENTIALS="$CREDS_FILE" "$GCLOUD" storage ls --project "$GCP_PROJECT" 2>/dev/null | grep -c "bucket-" || echo 0
+    GOOGLE_APPLICATION_CREDENTIALS="$CREDS_FILE" "$GCLOUD" storage ls --project "$GCP_PROJECT" 2>/dev/null | { grep -c "bucket-" || true; }
 }
 
 assert_eq() {
@@ -395,7 +395,7 @@ test_concurrent_create() {
         log "  PASS: All workspaces scaled to zero"
         pass=$((pass + 1))
     else
-        local ws_count=$(kubectl $KFN -n "$NAMESPACE" get pods --no-headers 2>/dev/null | grep -c "workspace" || echo 0)
+        local ws_count=$(kubectl $KFN -n "$NAMESPACE" get pods --no-headers 2>/dev/null | { grep -c "workspace" || true; })
         err "  FAIL: $ws_count workspace pods still running after create"
         fail=$((fail + 1))
     fi
@@ -439,7 +439,7 @@ test_concurrent_update() {
         log "  PASS: All workspaces scaled to zero after update"
         pass=$((pass + 1))
     else
-        local ws_count=$(kubectl $KFN -n "$NAMESPACE" get pods --no-headers 2>/dev/null | grep -c "workspace" || echo 0)
+        local ws_count=$(kubectl $KFN -n "$NAMESPACE" get pods --no-headers 2>/dev/null | { grep -c "workspace" || true; })
         err "  FAIL: $ws_count workspace pods still running after update"
         fail=$((fail + 1))
     fi
@@ -471,7 +471,7 @@ test_concurrent_destroy() {
     assert_eq "GCS buckets remaining on GCP" "0" "$bucket_count"
 
     # Verify no workspace pods
-    local ws_count=$(kubectl $KFN -n "$NAMESPACE" get pods --no-headers 2>/dev/null | grep -c "workspace" || echo 0)
+    local ws_count=$(kubectl $KFN -n "$NAMESPACE" get pods --no-headers 2>/dev/null | { grep -c "workspace" || true; })
     assert_eq "Workspace pods after destroy" "0" "$ws_count"
 }
 

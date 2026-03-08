@@ -26,6 +26,9 @@ pub struct Metrics {
     pub connection_pool_hits: AtomicU64,
     pub connection_pool_misses: AtomicU64,
     pub mailbox_drops: AtomicU64,
+    pub events_emitted: AtomicU64,
+    pub notifications_sent: AtomicU64,
+    pub notifications_failed: AtomicU64,
 
     // Prometheus registry metrics (synced from atomics on scrape)
     registry: parking_lot::RwLock<Registry>,
@@ -35,6 +38,9 @@ pub struct Metrics {
     prom_lock_conflicts: Counter,
     prom_force_unlocks: Counter,
     prom_mailbox_drops: Counter,
+    prom_events_emitted: Counter,
+    prom_notifications_sent: Counter,
+    prom_notifications_failed: Counter,
 }
 
 impl Default for Metrics {
@@ -53,6 +59,9 @@ impl Metrics {
         let lock_conflicts = Counter::default();
         let force_unlocks = Counter::default();
         let mailbox_drops = Counter::default();
+        let events_emitted = Counter::default();
+        let notifications_sent = Counter::default();
+        let notifications_failed = Counter::default();
 
         registry.register(
             "pulumi_operator_reconciles_total",
@@ -84,6 +93,21 @@ impl Metrics {
             "Total number of messages dropped due to full actor mailbox",
             mailbox_drops.clone(),
         );
+        registry.register(
+            "pulumi_operator_events_emitted_total",
+            "Total number of Kubernetes events emitted",
+            events_emitted.clone(),
+        );
+        registry.register(
+            "pulumi_operator_notifications_sent_total",
+            "Total number of webhook notifications sent successfully",
+            notifications_sent.clone(),
+        );
+        registry.register(
+            "pulumi_operator_notifications_failed_total",
+            "Total number of webhook notifications that failed",
+            notifications_failed.clone(),
+        );
 
         Self {
             reconciles_total: AtomicU64::new(0),
@@ -95,6 +119,9 @@ impl Metrics {
             connection_pool_hits: AtomicU64::new(0),
             connection_pool_misses: AtomicU64::new(0),
             mailbox_drops: AtomicU64::new(0),
+            events_emitted: AtomicU64::new(0),
+            notifications_sent: AtomicU64::new(0),
+            notifications_failed: AtomicU64::new(0),
             registry: parking_lot::RwLock::new(registry),
             prom_reconciles: reconciles,
             prom_errors: errors,
@@ -102,6 +129,9 @@ impl Metrics {
             prom_lock_conflicts: lock_conflicts,
             prom_force_unlocks: force_unlocks,
             prom_mailbox_drops: mailbox_drops,
+            prom_events_emitted: events_emitted,
+            prom_notifications_sent: notifications_sent,
+            prom_notifications_failed: notifications_failed,
         }
     }
 
@@ -150,6 +180,21 @@ impl Metrics {
     pub fn inc_mailbox_drops(&self) {
         self.mailbox_drops.fetch_add(1, Relaxed);
         self.prom_mailbox_drops.inc();
+    }
+
+    pub fn inc_events_emitted(&self) {
+        self.events_emitted.fetch_add(1, Relaxed);
+        self.prom_events_emitted.inc();
+    }
+
+    pub fn inc_notifications_sent(&self) {
+        self.notifications_sent.fetch_add(1, Relaxed);
+        self.prom_notifications_sent.inc();
+    }
+
+    pub fn inc_notifications_failed(&self) {
+        self.notifications_failed.fetch_add(1, Relaxed);
+        self.prom_notifications_failed.inc();
     }
 
     /// Encode all metrics in Prometheus text format.

@@ -50,7 +50,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends --no-install-su
 
 # Install Pulumi CLI
 ARG PULUMI_VERSION=3.216.0
-RUN curl -fsSL https://get.pulumi.com/releases/sdk/pulumi-v${PULUMI_VERSION}-linux-arm64.tar.gz \
+ARG TARGETARCH
+RUN PULUMI_ARCH=$(case "${TARGETARCH}" in arm64) echo "arm64";; *) echo "x64";; esac) && \
+    curl -fsSL "https://get.pulumi.com/releases/sdk/pulumi-v${PULUMI_VERSION}-linux-${PULUMI_ARCH}.tar.gz" \
     | tar xz -C /usr/local/bin --strip-components=1
 
 LABEL org.opencontainers.image.source="https://github.com/lituus-io/pulumi-rs-kube-operator"

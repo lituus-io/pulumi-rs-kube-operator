@@ -27,8 +27,14 @@ A Kubernetes operator for managing [Pulumi](https://www.pulumi.com/) stacks as n
 # Add CRDs
 kubectl apply -f https://raw.githubusercontent.com/lituus-io/pulumi-rs-kube-operator/main/deploy/helm/pulumi-operator/crds/
 
-# Install operator
+# Method 1: OCI (recommended for Flux)
 helm install pulumi-operator oci://ghcr.io/lituus-io/charts/pulumi-operator \
+  --namespace pulumi-system --create-namespace
+
+# Method 2: Traditional Helm repo
+helm repo add pulumi-operator https://lituus-io.github.io/pulumi-rs-kube-operator
+helm repo update
+helm install pulumi-operator pulumi-operator/pulumi-operator \
   --namespace pulumi-system --create-namespace
 ```
 

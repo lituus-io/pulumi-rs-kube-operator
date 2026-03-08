@@ -19,8 +19,11 @@ mod source_test;
 #[path = "unit/finalizers_test.rs"]
 mod finalizers_test;
 
-#[path = "unit/flux_test.rs"]
-mod flux_test;
+#[path = "unit/events_test.rs"]
+mod events_test;
+
+#[path = "unit/notification_test.rs"]
+mod notification_test;
 
 #[path = "unit/manager_test.rs"]
 mod manager_test;

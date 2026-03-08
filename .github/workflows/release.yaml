@@ -64,7 +64,7 @@ jobs:
         run: |
           TAG="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}-${{ matrix.arch }}"
           cp target/${{ matrix.target }}/release/pulumi-kubernetes-operator ./pulumi-kubernetes-operator
-          docker build -f Dockerfile.release -t "${TAG}" .
+          docker build -f Dockerfile.release --platform linux/${{ matrix.arch }} -t "${TAG}" .
           docker push "${TAG}"
 
       - uses: actions/upload-artifact@v4
@@ -163,9 +163,58 @@ jobs:
           helm push pulumi-operator-${{ steps.version.outputs.version }}.tgz \
             oci://${{ env.REGISTRY }}/${{ github.repository_owner }}/charts
 
+  publish-helm-pages:
+    name: Publish Helm Chart (GitHub Pages)
+    needs: manifest
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          fetch-depth: 0
+
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.14.0
+
+      - uses: actions/checkout@v4
+        with:
+          path: source
+          ref: ${{ github.ref_name }}
+
+      - name: Extract version
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Update Chart.yaml version
+        run: |
+          sed -i "s/^version:.*/version: ${{ steps.version.outputs.version }}/" source/${{ env.HELM_CHART_PATH }}/Chart.yaml
+          sed -i "s/^appVersion:.*/appVersion: \"${{ steps.version.outputs.version }}\"/" source/${{ env.HELM_CHART_PATH }}/Chart.yaml
+
+      - name: Package chart
+        run: helm package source/${{ env.HELM_CHART_PATH }} -d .
+
+      - name: Update index
+        run: |
+          if [ -f index.yaml ]; then
+            helm repo index . --url https://lituus-io.github.io/pulumi-rs-kube-operator --merge index.yaml
+          else
+            helm repo index . --url https://lituus-io.github.io/pulumi-rs-kube-operator
+          fi
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.yaml "pulumi-operator-${{ steps.version.outputs.version }}.tgz"
+          git commit -m "Release chart ${{ steps.version.outputs.version }}"
+          git push
+
   create-release:
     name: GitHub Release
-    needs: [manifest, publish-helm]
+    needs: [manifest, publish-helm, publish-helm-pages]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

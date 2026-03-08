@@ -20,16 +20,24 @@ spec:
     name: v1
     schema:
       openAPIV3Schema:
-        description: Auto-generated derived type for ProgramSpec via `CustomResource`
+        description: Program is the schema for the inline YAML program API.
         properties:
-          spec:
-            description: Program CRD -- pulumi.com/v1
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
+          program:
+            description: |-
+              Program CRD -- pulumi.com/v1
+
+              Note: We manually define the `Program` root struct below (instead of `#[derive(CustomResource)]`) because the Go operator's CRD stores the program data under a top-level `program` field, not the conventional `spec` field that kube-derive generates.
             properties:
               configuration:
                 additionalProperties:
                   properties:
                     default:
-                      type: object
                       x-kubernetes-preserve-unknown-fields: true
                     type:
                       enum:
@@ -45,7 +53,6 @@ spec:
                 type: object
               outputs:
                 additionalProperties:
-                  type: object
                   x-kubernetes-preserve-unknown-fields: true
                 description: Stack outputs.
                 type: object
@@ -65,7 +72,6 @@ spec:
                           type: string
                         state:
                           additionalProperties:
-                            type: object
                             x-kubernetes-preserve-unknown-fields: true
                           type: object
                       required:
@@ -100,7 +106,6 @@ spec:
                           type: boolean
                         dependsOn:
                           items:
-                            type: object
                             x-kubernetes-preserve-unknown-fields: true
                           type: array
                         ignoreChanges:
@@ -111,17 +116,14 @@ spec:
                           nullable: true
                           type: string
                         parent:
-                          type: object
                           x-kubernetes-preserve-unknown-fields: true
                         protect:
                           default: false
                           type: boolean
                         provider:
-                          type: object
                           x-kubernetes-preserve-unknown-fields: true
                         providers:
                           additionalProperties:
-                            type: object
                             x-kubernetes-preserve-unknown-fields: true
                           type: object
                         version:
@@ -130,7 +132,6 @@ spec:
                       type: object
                     properties:
                       additionalProperties:
-                        type: object
                         x-kubernetes-preserve-unknown-fields: true
                       type: object
                     type:
@@ -143,13 +144,11 @@ spec:
                 type: object
               variables:
                 additionalProperties:
-                  type: object
                   x-kubernetes-preserve-unknown-fields: true
                 description: Variables computed from expressions.
                 type: object
             type: object
           status:
-            nullable: true
             properties:
               artifact:
                 nullable: true
@@ -186,7 +185,7 @@ spec:
                 type: integer
             type: object
         required:
-        - spec
+        - program
         title: Program
         type: object
     served: true

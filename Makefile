@@ -4,7 +4,7 @@ SHELL := /bin/bash
 # ——— Variables ———
 VERSION    ?= $(shell cargo metadata --format-version 1 --no-deps | jq -r '.packages[0].version')
 REGISTRY   ?= ghcr.io
-IMAGE_NAME ?= $(REGISTRY)/pulumi/pulumi-rs-kube-operator
+IMAGE_NAME ?= $(REGISTRY)/lituus-io/pulumi-rs-kube-operator
 HELM_CHART ?= deploy/helm/pulumi-operator
 
 # ——— Build ———

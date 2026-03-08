@@ -752,6 +752,7 @@ mod tests {
             operation_timeout_seconds: 3600,
             finalizer_timeout_seconds: 3600,
             project_verification: None,
+            notifications: vec![],
         }
     }
 }

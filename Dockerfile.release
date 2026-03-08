@@ -1,6 +1,16 @@
-# Single-arch Dockerfile used by CI release workflow.
-# Expects the pre-built binary at ./pulumi-kubernetes-operator in the build context.
-FROM cgr.dev/chainguard/static:latest
+# Release Dockerfile: pre-built binary + full runtime (Pulumi CLI, git, tini).
+# Expects the pre-built musl binary at ./pulumi-kubernetes-operator in the build context.
+FROM debian:trixie-20250224-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends --no-install-suggests \
+    ca-certificates curl git tini \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+ARG PULUMI_VERSION=3.216.0
+ARG TARGETARCH
+RUN PULUMI_ARCH=$(case "${TARGETARCH}" in arm64) echo "arm64";; *) echo "x64";; esac) && \
+    curl -fsSL "https://get.pulumi.com/releases/sdk/pulumi-v${PULUMI_VERSION}-linux-${PULUMI_ARCH}.tar.gz" \
+    | tar xz -C /usr/local/bin --strip-components=1
 
 LABEL org.opencontainers.image.source="https://github.com/lituus-io/pulumi-rs-kube-operator"
 LABEL org.opencontainers.image.description="Pulumi Kubernetes Operator (Rust)"
@@ -8,8 +18,16 @@ LABEL org.opencontainers.image.licenses="AGPL-3.0-or-later"
 LABEL org.opencontainers.image.vendor="Lituus-io"
 
 COPY pulumi-kubernetes-operator /usr/local/bin/pulumi-kubernetes-operator
+RUN ln -s /usr/local/bin/pulumi-kubernetes-operator /agent && \
+    ln -s /usr/bin/tini /tini
+RUN useradd -m -u 1000 pulumi
 
-USER nonroot:nonroot
+ARG PULUMI_GCP_VERSION=8.0.0
+USER 1000:1000
+RUN pulumi plugin install resource gcp ${PULUMI_GCP_VERSION}
+
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+    CMD curl -f http://localhost:8081/healthz || exit 1
 
 ENTRYPOINT ["/usr/local/bin/pulumi-kubernetes-operator"]
 CMD ["operator"]

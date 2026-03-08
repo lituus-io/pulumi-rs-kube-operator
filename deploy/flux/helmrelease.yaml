@@ -13,6 +13,16 @@ spec:
   # secretRef:
   #   name: ghcr-credentials
 ---
+# --- Alternative: GitHub Pages Helm repository (traditional) ---
+# apiVersion: source.toolkit.fluxcd.io/v1
+# kind: HelmRepository
+# metadata:
+#   name: pulumi-operator
+#   namespace: flux-system
+# spec:
+#   interval: 10m
+#   url: https://lituus-io.github.io/pulumi-rs-kube-operator
+---
 # Flux HelmRelease
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease

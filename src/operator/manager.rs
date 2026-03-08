@@ -10,7 +10,7 @@ use crate::api::update::Update;
 use crate::api::workspace::Workspace;
 use crate::operator::connection::ConnectionPool;
 use crate::operator::controllers::program::ProgramFileServer;
-use crate::operator::flux::FluxEventEmitter;
+use crate::operator::events::EventRecorder;
 use crate::operator::metrics::Metrics;
 
 /// Shared informer caches -- populated by reflector-backed watchers.
@@ -27,7 +27,7 @@ pub struct InformerStores {
 pub struct Manager {
     pub client: kube::Client,
     pub pool: ConnectionPool,
-    pub emitter: FluxEventEmitter,
+    pub events: EventRecorder,
     pub metrics: Metrics,
     pub max_concurrent_reconciles: usize,
     pub stores: InformerStores,
@@ -47,7 +47,7 @@ impl Manager {
             pool: ConnectionPool::new(
                 std::time::Duration::from_secs(7200), // 2 hour idle prune (matches Go)
             ),
-            emitter: FluxEventEmitter::new(client.clone()),
+            events: EventRecorder::new(client.clone()),
             metrics: Metrics::new(),
             client,
             max_concurrent_reconciles,

@@ -2,7 +2,7 @@ pub mod actors;
 pub mod connection;
 pub mod controllers;
 pub mod finalizers;
-pub mod flux;
+pub mod events;
 pub mod health;
 pub mod lock;
 pub mod manager;

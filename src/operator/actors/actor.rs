@@ -254,6 +254,12 @@ impl Actor {
             }
             RA::RemoveFinalizerAfterDestroy => {
                 tracing::info!(key = %self.key, "destroy completed, removing finalizer");
+                self.mgr.events.record(
+                    &event_ref_helper::stack_ref(stack),
+                    &crate::operator::events::StackEvent::DestroySucceeded,
+                    stack,
+                    &self.mgr.metrics,
+                );
                 // Delete workspace before removing finalizer (cleanup)
                 if stack.spec.workspace_reclaim_policy == WorkspaceReclaimPolicy::Delete {
                     self.delete_workspace(name).await;
@@ -262,6 +268,12 @@ impl Actor {
             }
             RA::UpdateCreated { name: update_name } => {
                 tracing::info!(key = %self.key, update = %update_name, "update created");
+                self.mgr.events.record(
+                    &event_ref_helper::stack_ref(stack),
+                    &crate::operator::events::StackEvent::UpdateCreated { update_name },
+                    stack,
+                    &self.mgr.metrics,
+                );
                 self.state.lock_state.on_success(); // Clear lock state on new update
                 self.state.failure_count = 0;
                 let generation = stack.metadata.generation.unwrap_or(0);
@@ -292,6 +304,15 @@ impl Actor {
                     key = %self.key, update = %update_name,
                     permalink = permalink.as_deref().unwrap_or(""),
                     "update succeeded"
+                );
+                self.mgr.events.record(
+                    &event_ref_helper::stack_ref(stack),
+                    &crate::operator::events::StackEvent::UpdateSucceeded {
+                        update_name,
+                        permalink: permalink.as_deref(),
+                    },
+                    stack,
+                    &self.mgr.metrics,
                 );
                 self.state.failure_count = 0;
                 self.state.lock_state.on_success();
@@ -347,6 +368,21 @@ impl Actor {
                     message, is_lock,
                     "update failed"
                 );
+                if is_lock {
+                    self.mgr.events.record(
+                        &event_ref_helper::stack_ref(stack),
+                        &crate::operator::events::StackEvent::LockConflict { update_name },
+                        stack,
+                        &self.mgr.metrics,
+                    );
+                } else {
+                    self.mgr.events.record(
+                        &event_ref_helper::stack_ref(stack),
+                        &crate::operator::events::StackEvent::UpdateFailed { update_name, message },
+                        stack,
+                        &self.mgr.metrics,
+                    );
+                }
                 self.state.failure_count += 1;
                 let generation = stack.metadata.generation.unwrap_or(0);
                 let now = chrono::Utc::now().to_rfc3339();
@@ -437,6 +473,12 @@ impl Actor {
             }
             RA::DestroyStarted { name: update_name } => {
                 tracing::info!(key = %self.key, update = %update_name, "destroy update created, waiting for completion");
+                self.mgr.events.record(
+                    &event_ref_helper::stack_ref(stack),
+                    &crate::operator::events::StackEvent::DestroyStarted { update_name },
+                    stack,
+                    &self.mgr.metrics,
+                );
                 let generation = stack.metadata.generation.unwrap_or(0);
                 let now = chrono::Utc::now().to_rfc3339();
                 use crate::operator::status::{stack_patch, condition};
@@ -462,6 +504,15 @@ impl Actor {
                 tracing::warn!(
                     key = %self.key, update = %update_name, failures,
                     "destroy update failed, will retry"
+                );
+                self.mgr.events.record(
+                    &event_ref_helper::stack_ref(stack),
+                    &crate::operator::events::StackEvent::DestroyFailed {
+                        update_name,
+                        attempt: *failures,
+                    },
+                    stack,
+                    &self.mgr.metrics,
                 );
                 self.state.failure_count = (*failures).min(u32::MAX as i64) as u32;
                 let generation = stack.metadata.generation.unwrap_or(0);
@@ -515,6 +566,12 @@ impl Actor {
                 tracing::warn!(
                     key = %self.key, project = %project_id,
                     "project not found, starting/continuing grace period"
+                );
+                self.mgr.events.record(
+                    &event_ref_helper::stack_ref(stack),
+                    &crate::operator::events::StackEvent::ProjectNotFound { project_id },
+                    stack,
+                    &self.mgr.metrics,
                 );
                 let generation = stack.metadata.generation.unwrap_or(0);
                 let now = chrono::Utc::now().to_rfc3339();
@@ -587,6 +644,12 @@ impl Actor {
             }
             RA::ProjectTtlExpired => {
                 tracing::warn!(key = %self.key, "project grace period expired, taking action");
+                self.mgr.events.record(
+                    &event_ref_helper::stack_ref(stack),
+                    &crate::operator::events::StackEvent::ProjectTtlExpired,
+                    stack,
+                    &self.mgr.metrics,
+                );
                 let generation = stack.metadata.generation.unwrap_or(0);
                 let now = chrono::Utc::now().to_rfc3339();
 
@@ -661,6 +724,12 @@ impl Actor {
                             key = %self.key,
                             message = %msg,
                             "force-unlock succeeded"
+                        );
+                        self.mgr.events.record(
+                            &event_ref_helper::stack_ref(stack),
+                            &crate::operator::events::StackEvent::ForceUnlocked,
+                            stack,
+                            &self.mgr.metrics,
                         );
                         self.state.lock_state.on_success();
                         true
@@ -865,10 +934,15 @@ impl Actor {
             }
             RA::Stall => {
                 tracing::warn!(key = %self.key, "stack stalled: {}", error);
-                self.mgr.emitter.emit(
+                self.mgr.events.record(
                     &event_ref_helper::stack_ref(stack),
-                    error,
-                ).await;
+                    &crate::operator::events::StackEvent::Stalled {
+                        reason: error.condition_reason(),
+                        message: &error.to_string(),
+                    },
+                    stack,
+                    &self.mgr.metrics,
+                );
             }
             RA::ForceUnlockAndRetry => {
                 self.mgr.metrics.inc_lock_conflicts();

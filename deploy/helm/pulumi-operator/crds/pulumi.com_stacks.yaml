@@ -43,7 +43,6 @@ spec:
                 type: string
               config:
                 additionalProperties:
-                  type: object
                   x-kubernetes-preserve-unknown-fields: true
                 type: object
               configRef:
@@ -139,6 +138,8 @@ spec:
               finalizerTimeoutSeconds:
                 default: 3600
                 format: int64
+                maximum: 86400.0
+                minimum: 60.0
                 type: integer
               fluxSource:
                 nullable: true
@@ -435,12 +436,48 @@ spec:
                 nullable: true
                 type: string
               lockTimeoutSeconds:
-                default: 600
+                default: 900
                 format: int64
+                maximum: 7200.0
+                minimum: 60.0
                 type: integer
+              notifications:
+                description: Notification webhooks for push-based alerting (Slack, PagerDuty, etc.).
+                items:
+                  properties:
+                    authSecret:
+                      nullable: true
+                      properties:
+                        key:
+                          type: string
+                        name:
+                          type: string
+                      required:
+                      - key
+                      - name
+                      type: object
+                    events:
+                      items:
+                        enum:
+                        - UpdateSucceeded
+                        - UpdateFailed
+                        - DestroySucceeded
+                        - DestroyFailed
+                        - LockConflict
+                        - Stalled
+                        type: string
+                      type: array
+                    url:
+                      type: string
+                  required:
+                  - url
+                  type: object
+                type: array
               operationTimeoutSeconds:
                 default: 3600
                 format: int64
+                maximum: 86400.0
+                minimum: 60.0
                 type: integer
               prerequisites:
                 items:
@@ -472,6 +509,47 @@ spec:
               projectRepo:
                 nullable: true
                 type: string
+              projectVerification:
+                description: Optional project verification config. When set, the operator checks if the cloud project referenced by a program variable still exists. If not, a grace period starts, after which the stack's Kustomization is deleted (or its finalizer removed) so the cluster converges without manual cleanup.
+                nullable: true
+                properties:
+                  credentialSecret:
+                    description: Optional secret with cloud credentials for the project check. If absent, uses workload identity / ADC.
+                    nullable: true
+                    properties:
+                      key:
+                        type: string
+                      name:
+                        type: string
+                      namespace:
+                        nullable: true
+                        type: string
+                    required:
+                    - key
+                    - name
+                    type: object
+                  gracePeriodDays:
+                    default: 30
+                    description: Days to wait after project disappears before taking action.
+                    format: int64
+                    type: integer
+                  onGracePeriodExpired:
+                    default: DeleteKustomization
+                    description: Action to take when the grace period expires.
+                    enum:
+                    - DeleteKustomization
+                    - RemoveFinalizer
+                    type: string
+                  provider:
+                    default: gcp
+                    description: Cloud provider to check against (currently only "gcp").
+                    type: string
+                  variableName:
+                    description: Name of the Pulumi program variable that holds the cloud project ID.
+                    type: string
+                required:
+                - variableName
+                type: object
               refresh:
                 default: false
                 type: boolean
@@ -481,10 +559,14 @@ spec:
               resyncFrequencySeconds:
                 default: 0
                 format: int64
+                maximum: 86400.0
+                minimum: 0.0
                 type: integer
               retryMaxBackoffDurationSeconds:
                 default: 0
                 format: int64
+                maximum: 86400.0
+                minimum: 0.0
                 type: integer
               retryOnUpdateConflict:
                 default: false
@@ -558,6 +640,7 @@ spec:
                 type: boolean
               stack:
                 description: 'Fully qualified stack name (org/stack). String: inlined <= 24 bytes.'
+                pattern: ^[a-zA-Z0-9._/:-]+$
                 type: string
               targetDependents:
                 default: false
@@ -567,7 +650,6 @@ spec:
                   type: string
                 type: array
               updateTemplate:
-                type: object
                 x-kubernetes-preserve-unknown-fields: true
               useLocalStackOnly:
                 default: false
@@ -580,7 +662,6 @@ spec:
                 type: string
               workspaceTemplate:
                 description: RawValue for zero-copy SSA merge
-                type: object
                 x-kubernetes-preserve-unknown-fields: true
             required:
             - stack
@@ -631,6 +712,24 @@ spec:
                     nullable: true
                     type: string
                 type: object
+              lastProjectCheck:
+                description: Status of the last project existence check.
+                nullable: true
+                properties:
+                  checkedAt:
+                    description: RFC 3339 timestamp of the check.
+                    type: string
+                  message:
+                    description: Error message if result is "error".
+                    nullable: true
+                    type: string
+                  result:
+                    description: 'Result: "active", "not_found", "error", or "not_configured".'
+                    type: string
+                required:
+                - checkedAt
+                - result
+                type: object
               lastUpdate:
                 nullable: true
                 properties:
@@ -679,9 +778,11 @@ spec:
                 type: string
               outputs:
                 additionalProperties:
-                  type: object
                   x-kubernetes-preserve-unknown-fields: true
                 type: object
+              pendingDeletionSince:
+                nullable: true
+                type: string
             type: object
         required:
         - spec
