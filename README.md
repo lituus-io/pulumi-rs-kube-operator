@@ -1,5 +1,10 @@
 # Pulumi Kubernetes Operator (Rust)
 
+[![CI](https://github.com/lituus-io/pulumi-rs-kube-operator/actions/workflows/ci.yaml/badge.svg)](https://github.com/lituus-io/pulumi-rs-kube-operator/actions/workflows/ci.yaml)
+[![Security Audit](https://github.com/lituus-io/pulumi-rs-kube-operator/actions/workflows/security.yaml/badge.svg)](https://github.com/lituus-io/pulumi-rs-kube-operator/actions/workflows/security.yaml)
+[![Docker](https://github.com/lituus-io/pulumi-rs-kube-operator/actions/workflows/docker.yaml/badge.svg)](https://github.com/lituus-io/pulumi-rs-kube-operator/actions/workflows/docker.yaml)
+[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE-AGPL)
+
 A Kubernetes operator for managing [Pulumi](https://www.pulumi.com/) stacks as native Kubernetes resources. Written in Rust for performance, safety, and minimal resource footprint.
 
 ## Features

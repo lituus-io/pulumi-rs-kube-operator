@@ -1,0 +1,170 @@
+name: Docker
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build:
+    name: Build (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        include:
+          - arch: amd64
+            target: x86_64-unknown-linux-musl
+            runner: ubuntu-latest
+          - arch: arm64
+            target: aarch64-unknown-linux-musl
+            runner: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: docker-${{ matrix.target }}
+
+      - name: Install protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          version: "25.x"
+
+      - name: Install musl-tools
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
+
+      - name: Build binary
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Determine image tag
+        id: tag
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=edge" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build Docker image
+        run: |
+          cp target/${{ matrix.target }}/release/pulumi-kubernetes-operator ./pulumi-kubernetes-operator
+          chmod +x ./pulumi-kubernetes-operator
+          docker build \
+            -f Dockerfile.release \
+            --platform linux/${{ matrix.arch }} \
+            -t "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.tag }}-${{ matrix.arch }}" \
+            .
+
+      - name: Push Docker image
+        if: github.event_name != 'pull_request'
+        run: docker push "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.tag }}-${{ matrix.arch }}"
+
+      - name: Upload binary
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/upload-artifact@v4
+        with:
+          name: binary-${{ matrix.arch }}
+          path: target/${{ matrix.target }}/release/pulumi-kubernetes-operator
+
+  manifest:
+    name: Multi-Arch Manifest
+    needs: build
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Determine image tag
+        id: tag
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+            echo "is_release=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=edge" >> "$GITHUB_OUTPUT"
+            echo "is_release=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create and push manifest
+        run: |
+          BASE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
+          TAG="${{ steps.tag.outputs.tag }}"
+
+          docker manifest create "${BASE}:${TAG}" \
+            "${BASE}:${TAG}-amd64" \
+            "${BASE}:${TAG}-arm64"
+          docker manifest annotate "${BASE}:${TAG}" \
+            "${BASE}:${TAG}-amd64" --os linux --arch amd64
+          docker manifest annotate "${BASE}:${TAG}" \
+            "${BASE}:${TAG}-arm64" --os linux --arch arm64
+          docker manifest push "${BASE}:${TAG}"
+
+      - name: Tag as latest (releases only)
+        if: steps.tag.outputs.is_release == 'true'
+        run: |
+          BASE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
+          TAG="${{ steps.tag.outputs.tag }}"
+
+          docker manifest create "${BASE}:latest" \
+            "${BASE}:${TAG}-amd64" \
+            "${BASE}:${TAG}-arm64"
+          docker manifest annotate "${BASE}:latest" \
+            "${BASE}:${TAG}-amd64" --os linux --arch amd64
+          docker manifest annotate "${BASE}:latest" \
+            "${BASE}:${TAG}-arm64" --os linux --arch arm64
+          docker manifest push "${BASE}:latest"
+
+  sign:
+    name: Sign Image
+    needs: manifest
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    steps:
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign image
+        run: |
+          cosign sign --yes \
+            "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}"

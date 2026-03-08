@@ -8,76 +8,18 @@ on:
 permissions:
   contents: write
   packages: write
-  id-token: write  # cosign keyless signing
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
   HELM_CHART_PATH: deploy/helm/pulumi-operator
 
 jobs:
-  build-and-push:
-    name: Build (${{ matrix.arch }})
-    runs-on: ${{ matrix.runner }}
-    strategy:
-      matrix:
-        include:
-          - arch: amd64
-            target: x86_64-unknown-linux-musl
-            runner: ubuntu-latest
-          - arch: arm64
-            target: aarch64-unknown-linux-musl
-            runner: ubuntu-24.04-arm
-    steps:
-      - uses: actions/checkout@v4
+  # Docker images are built and pushed by docker.yaml (triggered on v* tags).
+  # This workflow waits for the image to be available before publishing Helm and GitHub release.
 
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.target }}
-      - uses: Swatinem/rust-cache@v2
-        with:
-          key: release-${{ matrix.target }}
-
-      - name: Install protoc
-        uses: arduino/setup-protoc@v3
-        with:
-          version: "25.x"
-
-      - name: Install musl-tools
-        run: sudo apt-get update && sudo apt-get install -y musl-tools
-
-      - name: Build binary
-        run: cargo build --release --target ${{ matrix.target }}
-
-      - name: Log in to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract version
-        id: version
-        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
-
-      - name: Build and push per-arch image
-        run: |
-          TAG="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}-${{ matrix.arch }}"
-          cp target/${{ matrix.target }}/release/pulumi-kubernetes-operator ./pulumi-kubernetes-operator
-          docker build -f Dockerfile.release --platform linux/${{ matrix.arch }} -t "${TAG}" .
-          docker push "${TAG}"
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: binary-${{ matrix.arch }}
-          path: target/${{ matrix.target }}/release/pulumi-kubernetes-operator
-
-  manifest:
-    name: Create Multi-Arch Manifest
-    needs: build-and-push
+  wait-for-image:
+    name: Wait for Docker Image
     runs-on: ubuntu-latest
-    outputs:
-      digest: ${{ steps.digest.outputs.digest }}
     steps:
       - name: Log in to GHCR
         uses: docker/login-action@v3
@@ -86,51 +28,24 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Create and push manifest list
+      - name: Wait for multi-arch image
         run: |
-          BASE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
-          TAG="${{ github.ref_name }}"
-
-          docker manifest create "${BASE}:${TAG}" \
-            "${BASE}:${TAG}-amd64" \
-            "${BASE}:${TAG}-arm64"
-
-          docker manifest annotate "${BASE}:${TAG}" \
-            "${BASE}:${TAG}-amd64" --os linux --arch amd64
-          docker manifest annotate "${BASE}:${TAG}" \
-            "${BASE}:${TAG}-arm64" --os linux --arch arm64
-
-          docker manifest push "${BASE}:${TAG}"
-
-          # Also tag as latest
-          docker manifest create "${BASE}:latest" \
-            "${BASE}:${TAG}-amd64" \
-            "${BASE}:${TAG}-arm64"
-          docker manifest annotate "${BASE}:latest" \
-            "${BASE}:${TAG}-amd64" --os linux --arch amd64
-          docker manifest annotate "${BASE}:latest" \
-            "${BASE}:${TAG}-arm64" --os linux --arch arm64
-          docker manifest push "${BASE}:latest"
-
-      - name: Get digest
-        id: digest
-        run: |
-          DIGEST=$(docker manifest inspect \
-            "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}" \
-            -v | jq -r '.Descriptor.digest')
-          echo "digest=${DIGEST}" >> "$GITHUB_OUTPUT"
-
-      - name: Install cosign
-        uses: sigstore/cosign-installer@v3
-
-      - name: Sign image
-        run: |
-          cosign sign --yes \
-            "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.digest.outputs.digest }}"
+          IMAGE="${{ env.REGISTRY }}/${{ github.repository }}:${{ github.ref_name }}"
+          echo "Waiting for ${IMAGE}..."
+          for i in $(seq 1 60); do
+            if docker manifest inspect "${IMAGE}" > /dev/null 2>&1; then
+              echo "Image available!"
+              exit 0
+            fi
+            echo "  Attempt $i/60 — not ready yet, waiting 30s..."
+            sleep 30
+          done
+          echo "::error::Timed out waiting for Docker image"
+          exit 1
 
   publish-helm:
-    name: Publish Helm Chart
-    needs: manifest
+    name: Publish Helm Chart (OCI)
+    needs: wait-for-image
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -165,7 +80,7 @@ jobs:
 
   publish-helm-pages:
     name: Publish Helm Chart (GitHub Pages)
-    needs: manifest
+    needs: wait-for-image
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -214,23 +129,61 @@ jobs:
 
   create-release:
     name: GitHub Release
-    needs: [manifest, publish-helm, publish-helm-pages]
+    needs: [publish-helm, publish-helm-pages]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/download-artifact@v4
-        with:
-          path: /tmp/artifacts
+      # Download binaries uploaded by docker.yaml
+      - name: Wait for binary artifacts
+        run: |
+          echo "Waiting for docker.yaml workflow artifacts..."
+          sleep 10
 
-      - name: Prepare release assets
+      - name: Download artifacts via gh CLI
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p /tmp/release
-          cp /tmp/artifacts/binary-amd64/pulumi-kubernetes-operator \
-             /tmp/release/pulumi-kubernetes-operator-linux-amd64
-          cp /tmp/artifacts/binary-arm64/pulumi-kubernetes-operator \
-             /tmp/release/pulumi-kubernetes-operator-linux-arm64
-          cd /tmp/release && sha256sum * > checksums.txt
+
+          # Find the docker.yaml workflow run for this tag
+          RUN_ID=""
+          for i in $(seq 1 30); do
+            RUN_ID=$(gh run list \
+              --workflow docker.yaml \
+              --branch "${{ github.ref_name }}" \
+              --status completed \
+              --json databaseId \
+              --jq '.[0].databaseId' 2>/dev/null || true)
+            if [[ -n "$RUN_ID" && "$RUN_ID" != "null" ]]; then
+              echo "Found docker workflow run: $RUN_ID"
+              break
+            fi
+            echo "  Attempt $i/30 — waiting for docker workflow to complete..."
+            sleep 30
+          done
+
+          if [[ -z "$RUN_ID" || "$RUN_ID" == "null" ]]; then
+            echo "::warning::Could not find docker workflow artifacts, building binaries locally"
+            exit 0
+          fi
+
+          gh run download "$RUN_ID" -n binary-amd64 -D /tmp/artifacts/binary-amd64 || true
+          gh run download "$RUN_ID" -n binary-arm64 -D /tmp/artifacts/binary-arm64 || true
+
+          if [[ -f /tmp/artifacts/binary-amd64/pulumi-kubernetes-operator ]]; then
+            cp /tmp/artifacts/binary-amd64/pulumi-kubernetes-operator \
+               /tmp/release/pulumi-kubernetes-operator-linux-amd64
+          fi
+          if [[ -f /tmp/artifacts/binary-arm64/pulumi-kubernetes-operator ]]; then
+            cp /tmp/artifacts/binary-arm64/pulumi-kubernetes-operator \
+               /tmp/release/pulumi-kubernetes-operator-linux-arm64
+          fi
+
+          cd /tmp/release
+          if ls * > /dev/null 2>&1; then
+            sha256sum * > checksums.txt
+          fi
 
       - name: Create release
         uses: softprops/action-gh-release@v2
