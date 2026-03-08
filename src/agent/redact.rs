@@ -19,10 +19,11 @@ pub fn redact_stderr(input: &str) -> Cow<'_, str> {
 }
 
 fn needs_redaction(s: &str) -> bool {
-    s.contains("password")
-        || s.contains("token")
-        || s.contains("secret")
-        || s.contains("credential")
+    let lower = s.to_ascii_lowercase();
+    lower.contains("password")
+        || lower.contains("token")
+        || lower.contains("secret")
+        || lower.contains("credential")
         || s.contains("PRIVATE KEY")
         || s.contains("eyJ") // JWT prefix (base64 of {"alg":...)
 }
@@ -85,6 +86,20 @@ mod tests {
         let result = redact_stderr("");
         assert!(matches!(result, Cow::Borrowed(_)));
         assert_eq!(&*result, "");
+    }
+
+    #[test]
+    fn redact_mixed_case_password() {
+        let result = redact_stderr("error: passwOrd=hunter2\n");
+        assert!(result.contains("[REDACTED]"));
+        assert!(!result.contains("hunter2"));
+    }
+
+    #[test]
+    fn redact_uppercase_token() {
+        let result = redact_stderr("debug: TOKEN=abc123\n");
+        assert!(result.contains("[REDACTED]"));
+        assert!(!result.contains("abc123"));
     }
 
     #[test]

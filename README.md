@@ -145,7 +145,7 @@ See [SECURITY.md](SECURITY.md) for vulnerability reporting and security practice
 
 ## License
 
-Copyright (c) 2025 Lituus-io. All rights reserved.
+Copyright (c) 2024-2026 Lituus-io. All rights reserved.
 
 Dual-licensed under [AGPL-3.0-or-later](LICENSE-AGPL) and a commercial license.
 See [LICENSE](LICENSE) for details.
